@@ -33,6 +33,8 @@
   integrates the documented office timeseries, room/device, and weekday routes
   with explicit provenance, coverage and page/full-period totals. Review is
   pending; stop after P023.
+- Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` was pushed normally
+  to `origin/main`; `git ls-remote` matched local HEAD at verification.
 
 ## P020 M3 addendum (2026-09-24; implemented and published, review pending)
 

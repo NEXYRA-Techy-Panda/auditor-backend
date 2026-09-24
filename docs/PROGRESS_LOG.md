@@ -365,7 +365,7 @@ correction entry; do not rewrite history.
 - Review remains pending. Exact next frontend action: implement forecast
   submit/poll/result display in `auditor-frontend`; stop after P020.
 
-## 2026-09-24 — P023 A5-backend started (Agent C — Codex)
+## 2026-09-24 â€” P023 A5-backend started (Agent C â€” Codex)
 
 - Preserved P020 completed/published outcome above. Starting HEAD is
   `df1ecbd08369d71f88de9cf5f26e6d8fd44e8ebd`, clean on `main`; no applicable
@@ -379,10 +379,10 @@ correction entry; do not rewrite history.
 - Next: design bounded paginated persisted-reading analytics, exact compatible
   bucket and coverage semantics, weekday route; then tests and live HTTP check.
 
-## 2026-09-24 — P023 A5-backend implementation completed (Agent C — Codex)
+## 2026-09-24 â€” P023 A5-backend implementation completed (Agent C â€” Codex)
 
 - Added stable paginated room/device analytics, exact-bucket office/room/device
-  timeseries, and Monday–Sunday local calendar analytics. Added current-tariff
+  timeseries, and Mondayâ€“Sunday local calendar analytics. Added current-tariff
   costs, distinct expected/covered duration, synthetic provenance, explicit
   missing/partial/complete states, and source-grid/bucket alignment validation.
 - Summary preserves `gaps: []` for compatibility but now reports
@@ -410,5 +410,7 @@ correction entry; do not rewrite history.
   dependency change.
 - No task-owned processes/temp directories remain; ports 4001 and 8000 are
   clear. Python/frontend/simulator siblings and shared contract remain
-  untouched. Next: commit/push normally, verify clean tree and remote main;
-  then OpenCode consumes the published documented routes. Review pending.
+  untouched. Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` was
+  pushed normally; remote and local `main` matched. Next: publish these final
+  continuity updates, verify clean tree and remote `main`, then OpenCode
+  consumes the documented routes. Review pending.

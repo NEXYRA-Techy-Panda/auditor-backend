@@ -152,6 +152,10 @@ Commands run after implementation:
   `npm run typecheck`, `npm run lint`, `npm run build` — pass; `npm test` —
   28/28; `git diff --check` — clean. No large month-upload benchmark was run.
 
+Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` was pushed normally
+to `origin/main`; local and remote `main` matched at publication. Final
+continuity updates are committed and pushed separately.
+
 Review remains pending. Next frontend action: OpenCode consumes these documented
 routes to add office timeseries, room/device breakdown and calendar-weekday
 views, displaying coverage/provenance and using full-period versus page totals
