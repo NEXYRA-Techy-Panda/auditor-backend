@@ -15,6 +15,12 @@ coverage/
 *.sqlite3
 *.db
 *.db-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite3-wal
+*.sqlite3-shm
+*.db-wal
+*.db-shm
 
 # Python virtual environments and caches.
 .venv/

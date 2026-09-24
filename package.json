@@ -15,15 +15,18 @@
     "lint": "eslint .",
     "test": "tsx --test test/*.test.ts",
     "verify:contract": "node scripts/verify-contract.mjs",
-    "validate:schema": "node scripts/validate-schema.mjs"
+    "validate:schema": "node scripts/validate-schema.mjs",
+    "db:migrate": "tsx src/db/migrate.ts"
   },
   "dependencies": {
     "ajv": "8.20.0",
+    "better-sqlite3": "13.0.3",
     "cors": "2.8.6",
     "express": "5.2.1"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@types/better-sqlite3": "7.6.13",
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
     "@types/node": "24.13.6",

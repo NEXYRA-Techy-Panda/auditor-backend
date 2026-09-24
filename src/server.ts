@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { createApp } from './app.js';
 import { type Config, ConfigError, loadConfig } from './config.js';
+import { AuditorDatabase } from './db/database.js';
 
 // Optional local overrides; variables already set in the environment win.
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -17,6 +18,7 @@ try {
 }
 
 const { host, port, shutdownTimeoutMs } = config;
+const database = new AuditorDatabase(config.databasePath, config.databaseBusyTimeoutMs);
 const server = createApp(config).listen(port, host, () => {
   console.log(`auditor-backend listening on http://${host}:${port} (health: /api/v1/health, pid ${process.pid})`);
 });
@@ -37,6 +39,7 @@ function shutdown(signal: NodeJS.Signals): void {
   timer.unref();
   server.close((err) => {
     if (err) console.error(err);
+    database.close();
     process.exit(err ? 1 : 0);
   });
   server.closeIdleConnections();

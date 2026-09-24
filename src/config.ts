@@ -11,6 +11,8 @@ export interface Config {
    * by callers). Configured only; not contacted until F4.
    */
   mlServiceUrl: string;
+  databasePath: string;
+  databaseBusyTimeoutMs: number;
 }
 
 export class ConfigError extends Error {}
@@ -57,5 +59,7 @@ export function loadConfig(env: Env = process.env): Config {
     jsonBodyLimit: parseSizeLimit('JSON_BODY_LIMIT', env.JSON_BODY_LIMIT || '100kb'),
     shutdownTimeoutMs: intInRange(env, 'SHUTDOWN_TIMEOUT_MS', 10000, 0, 600000),
     mlServiceUrl: parseOrigin('ML_SERVICE_URL', env.ML_SERVICE_URL || 'http://localhost:8000'),
+    databasePath: env.DATABASE_PATH || './data/auditor.sqlite',
+    databaseBusyTimeoutMs: intInRange(env, 'DATABASE_BUSY_TIMEOUT_MS', 5000, 0, 60000),
   };
 }

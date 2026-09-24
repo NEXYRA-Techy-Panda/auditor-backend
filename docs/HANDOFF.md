@@ -1,5 +1,38 @@
 # HANDOFF — auditor-backend
 
+## P003 F3-A addendum (2026-09-24; implementation complete, review pending)
+
+- Base: F2-B `7ce573408d0bec51b7c08900052431df9cd8ed66`; task-owned changes
+  remain in this repository only. Shared contract 1.0.1 and verifier remain
+  unchanged.
+- Driver: exact `better-sqlite3` 13.0.3 runtime pin, Node engine `>=22`, plus
+  exact `@types/better-sqlite3` 7.6.13. Selected as a maintained synchronous
+  SQLite driver that runs on Node 24 and can be deployed with a Linux Node
+  runtime. npm reports zero vulnerabilities at installation.
+- DB path: `DATABASE_PATH` defaults to `./data/auditor.sqlite`; busy timeout
+  defaults to 5000 ms (`DATABASE_BUSY_TIMEOUT_MS`, range 0–60000). File DBs
+  use WAL; `:memory:` tests use MEMORY. Foreign keys are explicitly enabled.
+- Schema v1 records datasets/provenance, dataset-scoped buildings/rooms/devices,
+  policy versions, room/device intervals, tariff settings, analysis jobs,
+  findings, forecasts and comparisons. `migration_history` tracks versions;
+  no reset/drop migration is present. Dataset import is one transaction.
+- Export identity is `(source, simulator_run_id, export_id)`. A supplied
+  semantic fingerprint determines exact semantic re-import; equal fingerprint
+  returns the existing auditor `dataset_id`, different fingerprint raises a
+  conflict. File SHA-256 is retained only as provenance and is not used for
+  equivalence. CSV/JSON normalization remains for the import layer.
+- Verification: contract 75/75; schema 24/24; typecheck/lint/build passed;
+  tests 8/8 (including temporary-DB persistence checks); standalone migration
+  CLI succeeded with `DATABASE_PATH=:memory:`. `GET /api/v1/health` source is
+  unchanged and still reports `ml_reachable: not_checked`. No service process
+  or development DB was created by verification.
+- Full command/results and remaining integration limits: see
+  [P003_F3_A_EVIDENCE.md](P003_F3_A_EVIDENCE.md). Next task can use
+  `AuditorDatabase.storeDataset()` with a validated semantic fingerprint and
+  validated structured export. Do not infer fingerprint equivalence from the
+  file hash.
+- Commit/push reference: pending final repository verification.
+
 ## 0. Continuity and current layer (F0.1, 2026-09-24)
 
 - Current layer: **F2-B** (backend application scaffold) — status

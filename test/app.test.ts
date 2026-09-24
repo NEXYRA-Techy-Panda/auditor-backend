@@ -76,6 +76,7 @@ describe('config', () => {
     assert.deepEqual(loadConfig({}), {
       port: 4001, host: '127.0.0.1', frontendOrigin: 'http://localhost:3001',
       jsonBodyLimit: '100kb', shutdownTimeoutMs: 10000, mlServiceUrl: 'http://localhost:8000',
+      databasePath: './data/auditor.sqlite', databaseBusyTimeoutMs: 5000,
     });
   });
 

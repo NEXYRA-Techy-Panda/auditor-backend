@@ -210,3 +210,31 @@ correction entry; do not rewrite history.
   training, deployment.
 - Next action: commit + push, verify remote; next layer F3 pending its prompt.
 - Commit references: F2-B hash recorded in the F2-B return report.
+
+---
+
+# 2026-09-24 — P003 F3-A checkpoint
+
+- Assignment: Agent C — Codex, Auditor SQLite foundation; owner Mohan.
+- Startup: no applicable AGENTS.md; `main` at F2-B
+  `7ce573408d0bec51b7c08900052431df9cd8ed66`, clean and equal to origin after
+  fetch. No other repository was edited.
+- Implemented: pinned `better-sqlite3` 13.0.3 and types 7.6.13; SQLite v1
+  migration, connection config/lifecycle, typed dataset import/tariff/jobs/
+  findings/forecast/comparison persistence; temporary persistence tests; setup
+  command and documentation. Full details in `P003_F3_A_EVIDENCE.md`.
+- Semantics: dataset ID is auditor-owned; simulator run/export IDs remain
+  separate; scope-key FKs isolate inventories; export identity is
+  `(source, run_id, export_id)` and semantic fingerprint controls idempotency
+  vs conflict. Tariffs never modify dataset/readings; forecast energy and
+  tariff-derived cost occupy separate fields.
+- Checks: contract 75/75; schema 24/24; typecheck, lint, build passed; tests
+  8/8; migration CLI succeeded on `:memory:`. Focused test verified clean
+  startup/repeat migration, 0.03 kWh reference import, rollback, same IDs in
+  separate datasets, foreign-key enforcement, repeat/conflict identity,
+  tariff independence and close/reopen persistence.
+- No development DB or runtime process was created. Commit and remote hash
+  verification pending.
+- Next action: review git diff and ignored database patterns, commit/push this
+  repo's P003 changes without force, verify remote `main`, update this entry
+  with exact commit and working tree/process results.

@@ -9,10 +9,13 @@ project.
 - **Owner**: Mohan.
 - **Local port**: `4001`. Python service: `http://localhost:8000`.
 
-## Status (F2-B, 2026-09-24)
+## Status (P003 F3-A, 2026-09-24)
 
-Application scaffold implemented; review pending. Only `GET /api/v1/health`
-exists. It reports `ml_reachable: "not_checked"`; Python is not contacted until F4. Not implemented: database/migrations, imports/uploads, analysis jobs, forecasts, comparisons, reports, calls to energy-ml-service (later layers). Evidence: [F2-B evidence](docs/F2_B_EVIDENCE.md).
+SQLite foundation implemented; review pending. The only HTTP endpoint remains
+`GET /api/v1/health`, reporting `ml_reachable: "not_checked"`. The private
+database migrates automatically on server startup. No upload, importer,
+analysis route, forecast route, comparison route or Python call is included.
+Evidence: [P003 F3-A evidence](docs/P003_F3_A_EVIDENCE.md).
 
 ## Setup and commands (Windows PowerShell or Linux shell; Node >= 24, npm)
 
@@ -27,6 +30,20 @@ npm test                   # node:test via tsx (real HTTP on an ephemeral port)
 npm run verify:contract    # dependency-free contract checks (read-only bundle)
 npm run validate:schema    # formal JSON Schema 2020-12 validation (Ajv)
 ```
+
+The database path defaults to `./data/auditor.sqlite` and can be overridden
+with `DATABASE_PATH`. `DATABASE_BUSY_TIMEOUT_MS` defaults to `5000`.
+Migrations are versioned in `src/db/migrations.ts` and run automatically when
+the app opens the database. To migrate without starting HTTP:
+
+```sh
+npm run db:migrate
+```
+
+The migration command uses the same database configuration as the server.
+It never resets existing data. Local database files, WAL and shared-memory
+sidecars are ignored by Git. The auditor database is private and independent
+from the simulator database.
 
 Health check: `curl http://localhost:4001/api/v1/health`.
 
