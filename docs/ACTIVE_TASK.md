@@ -1,6 +1,18 @@
 # ACTIVE_TASK — auditor-backend
 
-## Assignment / Layer ID
+## Current assignment / Layer ID
+
+**P026-R1 — deployment recovery and detector integration verification**
+(follow-up to assignment 25 / approximately 29; approximately four further
+feature batches remain; this follow-up does not mark them complete). Owner:
+**Mohan**. Agent: **M-D — FreeBuff**. Exclusive write scope: `auditor-backend`.
+Task status: **completed** (diagnosis + verification + harness fix + docs);
+review status: **pending**. Public API was healthy and 502 was not reproduced;
+cause unknown and not attributed to P026; no VPS/deploy action taken. See
+[P026_R1 evidence](P026_R1_DEPLOYMENT_RECOVERY_EVIDENCE.md). The P026 outcome
+below is preserved unchanged.
+
+## Previous assignment / Layer ID (completed, preserved)
 
 P026 — device analysis integration (P022 excess consumption + P024 gradual
 trend). Owner: **Mohan**. Agent: **M-D — FreeBuff**. Exclusive write scope:
@@ -25,11 +37,11 @@ trend). Owner: **Mohan**. Agent: **M-D — FreeBuff**. Exclusive write scope:
    existing queue/jobs/findings machinery.
 3. Preserve imports, vacancy analysis, forecasting and analytics unchanged.
 
-## Task status
+## Task status (P026)
 
 completed (implementation + tests + real integration + documentation)
 
-## Review status
+## Review status (P026 and P026-R1)
 
 pending (never self-assigned)
 
@@ -67,7 +79,20 @@ pending (never self-assigned)
 - P026 must not change P023/P020/P015 behaviour; their regression tests pass
   unchanged in this assignment (36/36 includes all previous suites).
 
-## Verification performed and actual results
+## P026-R1 verification performed and actual results
+
+- Public read-only (2026-09-25 02:10 +0530 and 2026-09-24 20:44:43Z): health
+  **200** with `ml_reachable:true`, `/api/v1/detectors` **200** (P026 catalogue),
+  imports **200**, `/auditor` **301**, CORS preflight for
+  `https://enersave-coral.vercel.app` **204**. **502 was not reproduced.**
+- `npm test`: **37 passed, 0 failed** (36 + 1 new failed-detector-job test).
+- `verify:contract` **75/75**; `validate:schema` **24/24**; typecheck/lint/build
+  clean; `check:detector-http` pass; `check:analysis-http` **now passes**
+  (Windows tar fix).
+- No application source, route, migration, contract or config changed, so no new
+  application release was required.
+
+## P026 verification performed and actual results (preserved)
 
 - `npm test`: **36 passed, 0 failed** (28 pre-existing + 8 new).
 - `npm run verify:contract`: **75/75**; `npm run validate:schema`: **24/24**.
@@ -79,15 +104,21 @@ pending (never self-assigned)
 ## Incomplete edits and uncommitted changes
 
 None outstanding once the committed task work is pushed. Browser-witnessed
-frontend checks are not part of this assignment and remain pending.
+frontend checks remain pending (not part of this assignment).
 
 ## Blockers or unknowns
 
-- Frontend adapter work for the new detector statuses is a separate assignment.
+- Frontend adapter work for the new detector statuses is a separate assignment
+  (unchanged by P026-R1; the copyable handoff is in the P026-R1 evidence).
 - Detector accuracy evidence in Python remains synthetic; the numbers recorded
   here are structural integration results.
-- Pre-existing, unrelated: `scripts/check-analysis-http.mjs` fails on this
-  Windows checkout (zip through GNU tar) and was left unmodified.
+- P026-R1 resolved the pre-existing Windows harness failure:
+  `scripts/check-analysis-http.mjs` now uses `git archive --format=tar` with a
+  relative extraction path and passes.
+- Root cause of the earlier public 502 remains **unknown** (not reproduced).
+  Server-side log/revision confirmation requires scoped VPS access, which was
+  not exercised; the exact read-only commands are listed in the P026-R1
+  evidence §7.
 
 ## Exact next action
 
@@ -96,8 +127,11 @@ detector selection, then `POST /api/v1/analysis/jobs` with
 `detector` + `reference_window`/`evaluation_window`, and render `result.status`,
 `result.devices[].status`/`reason`/`assessment_source`,
 `result.aggregation.excluded_device_bins`, warnings and (drift)
-`other_changes` — never as malfunctions, efficiency loss or savings. Stop
-after P026 on the backend side; review remains pending.
+`other_changes` — never as malfunctions, efficiency loss or savings. The
+copyable handoff (exact catalogue response, POST bodies, GET nesting, pagination,
+status vocabulary, error codes) is in
+[P026_R1 evidence](P026_R1_DEPLOYMENT_RECOVERY_EVIDENCE.md) §4. Stop after
+P026-R1 on the backend side; review remains pending.
 
 ## Related-repository dependencies
 

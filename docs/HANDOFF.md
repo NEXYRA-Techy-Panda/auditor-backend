@@ -1,5 +1,49 @@
 # HANDOFF — auditor-backend
 
+## P026-R1 deployment-recovery addendum (2026-09-25; verification complete, review pending)
+
+- **Assignment:** P026-R1, deployment recovery and detector integration
+  verification. Follow-up to Mohan assignment 25 / approximately 29;
+  approximately four further feature batches remain — this follow-up does not
+  mark them complete. Exclusive write scope: `auditor-backend` only.
+- **502 not reproduced.** Public read-only checks at 2026-09-25 02:10:01 /
+  02:10:19 +0530 and 2026-09-24 20:44:43Z returned `GET
+  /auditor/api/v1/health` **200** (`ml_reachable:true`) and `GET
+  /auditor/api/v1/detectors` **200** with the full P026 catalogue; imports
+  **200**; `/auditor` **301** (prefix redirect, not a failure). CORS preflight
+  `OPTIONS /auditor/api/v1/analysis/jobs` for `https://enersave-coral.vercel.app`
+  returned **204** with the expected allow-headers. A single earlier probe in
+  the preceding layer had returned 502; the cause is **unknown and not
+  reproduced**, no causal link to P026 was established, and **no restart,
+  redeploy, Nginx, PM2 or VPS action was taken** (a healthy service must not be
+  restarted).
+- **Deployment actually observed:** the deployed service serves
+  `GET /api/v1/detectors`, a P026-only route, so the **P026 revision is
+  deployed**, not merely pushed. The exact deployed hash cannot be read from the
+  public API; §7 of the P026-R1 evidence lists the minimal read-only VPS
+  commands (`pm2 status`, `pm2 logs`, `ss -ltnp | grep 19002`, `git rev-parse`).
+  VPS access was not exercised.
+- **Changes:** `test/detectors.test.ts` gained a failed-detector-job identity
+  regression test (failed job keeps `detector.id`, `PYTHON_UNAVAILABLE`, no
+  stack leak, 0 persisted findings, survives reopen);
+  `scripts/check-detector-http.mjs` gained vacancy-default, window-validation,
+  not-assessed-vs-evaluated and no-invented-savings assertions;
+  `scripts/check-analysis-http.mjs` got a **binary-safe Windows fix**
+  (`git archive --format=tar -o <file>` + relative extraction path) and now
+  passes. No application source, route, migration, contract or config changed —
+  **no new application release was required.**
+- **Checks:** `npm test` **37/37**, `verify:contract` **75/75**,
+  `validate:schema` **24/24**, typecheck/lint/build 0, `check:detector-http`
+  pass, `check:analysis-http` pass. Public vs local verification and the full
+  frontend handoff (exact catalogue response, POST bodies for vacancy /
+  excess_consumption / gradual_trend, GET job-result nesting, pagination,
+  status vocabulary, `assessment_source`/exclusions/warnings/`other_changes`,
+  error codes, limitations): [P026_R1 evidence](P026_R1_DEPLOYMENT_RECOVERY_EVIDENCE.md).
+- **Not verified:** browser-witnessed detector UI, the exact deployed Git hash
+  and historical log evidence of the earlier 502 (needs scoped VPS access).
+  `auditor-frontend`, the separate reporting worktree, `energy-ml-service` and
+  the simulator repos were left untouched.
+
 ## P026 device-detector addendum (2026-09-25; implemented, review pending)
 
 - **Ownership transfer:** P026 was previously assigned to Mohan's **Codex**

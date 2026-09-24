@@ -534,6 +534,54 @@ test('public detector jobs persist findings, paginate them and never reprice the
   }
 });
 
+test('a failed detector job still reports its detector identity and persists no findings', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'nexyra-detector-failure-'));
+  let database = new AuditorDatabase(join(dir, 'auditor.sqlite'));
+  let server: Server | undefined;
+  try {
+    const spec: DatasetSpec = { datasetId: 'dataset-detector-failure', resolutionSeconds: 3600,
+      startUtc: WINDOWS.reference.start_utc, endUtc: WINDOWS.evaluation.end_utc, deviceId: 'light-a',
+      deviceType: 'lighting', appliesTo: 'device:light-a', power: () => 600 };
+    database.storeDataset({ datasetId: spec.datasetId, sourceFormat: 'json', sourceResolutionSeconds: 3600,
+      semanticFingerprint: 'detector-failure', data: buildDataset(spec) });
+    const python = new PythonAnalysisClient({ baseUrl: 'http://python.invalid', timeoutMs: 100,
+      fetchImpl: async (input) => {
+        if (String(input).endsWith('/health')) return envelope({ status: 'ok', model_available: false });
+        throw new TypeError('connection refused');
+      } });
+    const jobs = new AnalysisJobManager(database, new AnalysisBatchRunner(database, python));
+    server = createApp(loadConfig({ ML_TIMEOUT_MS: '100' }), database, { python, jobs }).listen(0, '127.0.0.1');
+    await new Promise<void>((resolve) => server!.once('listening', resolve));
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const queued = await fetch(`${base}/api/v1/analysis/jobs`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ dataset_id: spec.datasetId, detector: 'gradual_trend',
+        reference_window: WINDOWS.reference, evaluation_window: WINDOWS.evaluation }) });
+    assert.equal(queued.status, 202);
+    const accepted = (await queued.json() as { data: { job_id: string; detector: string } }).data;
+    assert.equal(accepted.detector, 'gradual_trend', 'the queued response carries the detector identity');
+    let body: { data: Row } | undefined;
+    for (let attempt = 0; attempt < 200; attempt++) {
+      body = await (await fetch(`${base}/api/v1/analysis/jobs/${accepted.job_id}`)).json() as { data: Row };
+      if (body.data.status === 'failed' || body.data.status === 'completed') break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(body?.data.status, 'failed');
+    assert.equal((body!.data.detector as Row).id, 'gradual_trend', 'a failed response keeps the detector identity');
+    assert.equal((body!.data.error as Row).code, 'PYTHON_UNAVAILABLE');
+    assert.doesNotMatch(String((body!.data.error as Row).message), /stack|TypeError|Traceback/i);
+    assert.equal(database.getAnalysisFindings(accepted.job_id, 10, 0).total, 0, 'a failed detector job persists no findings');
+    await new Promise<void>((resolve, reject) => server!.close((error) => error ? reject(error) : resolve()));
+    server = undefined;
+    database.close();
+    database = new AuditorDatabase(join(dir, 'auditor.sqlite'));
+    assert.equal(database.getAnalysisJob(accepted.job_id)?.status, 'failed');
+  } finally {
+    if (server?.listening) await new Promise<void>((resolve) => server!.close(() => resolve()));
+    database.close();
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Status distinctions and drift observations (P026 §6).
 // ---------------------------------------------------------------------------

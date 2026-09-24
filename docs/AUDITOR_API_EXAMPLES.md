@@ -467,6 +467,32 @@ Rules the frontend can rely on:
   are never added to vacancy avoidable-energy totals.
 - Python is still called only by this backend; the browser never calls Python.
 
+The `202` detector selection is `"vacancy"` (default), `"excess_consumption"`
+or `"gradual_trend"`. The vacancy request is unchanged; the two detectors add
+`reference_window` and `evaluation_window` (both required for detectors):
+
+```json
+{ "dataset_id": "auditor-generated-id", "detector": "gradual_trend",
+  "reference_window":  { "start_utc": "2026-01-01T00:00:00Z", "end_utc": "2026-01-09T00:00:00Z" },
+  "evaluation_window": { "start_utc": "2026-01-09T00:00:00Z", "end_utc": "2026-01-25T00:00:00Z" } }
+```
+
+Pagination lives at `data.result.findings_pagination` =
+`{ page, page_size, total }` (`total` is the full filtered count); request it
+with `?page=&page_size=`, maximum page size `500`. Retrieval only.
+
+Failure codes: a request that fails validation is `422 VALIDATION_ERROR` with a
+`field` (`reference_window`, `reference_window.start_utc`, `evaluation_window`,
+`reference_window` when reference does not end at or before evaluation starts,
+`detector` for an unknown detector); an unknown dataset is `404 NOT_FOUND` and a
+full queue is `503 CONFLICT`. A detector whose Python call fails returns HTTP
+`200` with `status: "failed"`, the `detector` identity block retained, and
+`data.error = { code, message }` whose `code` is `PYTHON_UNAVAILABLE`
+(unreachable), `PYTHON_TIMEOUT`, `PYTHON_MALFORMED` (bad reply shape),
+`REQUEST_TOO_LARGE` / `INSUFFICIENT_DATA` / `UNSUPPORTED_INPUT` /
+`UNSUPPORTED_VERSION` / `MODEL_UNAVAILABLE` (upstream rejections delivered as
+failed jobs), `JOB_INTERRUPTED` (interrupted at server restart) or `JOB_FAILED`.
+
 ## Forecasts (P020)
 
 The contract defines `POST /api/v1/forecasts` with `{ "dataset_id", "horizon" }`.

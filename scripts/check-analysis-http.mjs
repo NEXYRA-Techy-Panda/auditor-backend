@@ -87,7 +87,7 @@ function longVacancyDataset() {
 }
 
 const tempRoot = mkdtempSync(join(tmpdir(), 'nexyra-p015-analysis-'));
-const archivePath = join(tempRoot, 'p010-app.zip');
+const archivePath = join(tempRoot, 'p010-app.tar');
 const pythonOut = join(tempRoot, 'python.stdout.log');
 const pythonErr = join(tempRoot, 'python.stderr.log');
 const pythonStdoutFd = openSync(pythonOut, 'w');
@@ -97,9 +97,13 @@ let auditorServer;
 let database;
 let cleanupError;
 try {
-  const archive = spawnSync('git', ['-C', pythonRepo, 'archive', '--format=zip', '-o', archivePath, pythonCommit, 'app'], { encoding: 'utf8' });
+  // Plain tar extracted with a relative path and cwd: binary-safe with GNU tar
+  // and unable to be mistaken for tar's remote-host `host:path` syntax on
+  // Windows drive letters (P026-R1 portability fix; the check itself is
+  // unchanged).
+  const archive = spawnSync('git', ['-C', pythonRepo, 'archive', '--format=tar', '-o', archivePath, pythonCommit, 'app'], { encoding: 'utf8' });
   if (archive.status !== 0) throw new Error(`Could not export committed P010 source: ${archive.stderr}`);
-  const extraction = spawnSync('tar', ['-xf', archivePath, '-C', tempRoot], { encoding: 'utf8' });
+  const extraction = spawnSync('tar', ['-xf', 'p010-app.tar'], { cwd: tempRoot, encoding: 'utf8' });
   if (extraction.status !== 0) throw new Error(`Could not extract committed P010 source: ${extraction.stderr}`);
   rmSync(archivePath, { force: true });
   const pythonPort = await freePort();

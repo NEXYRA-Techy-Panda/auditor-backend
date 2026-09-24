@@ -496,3 +496,71 @@ correction entry; do not rewrite history.
   per-device `assessment_source`/`reason`, excluded bins, warnings and drift
   `other_changes` without malfunctions, efficiency loss or savings claims.
   Stop after P026 on the backend side.
+
+## 2026-09-25 — P026-R1 deployment recovery + detector verification (Agent M-D — FreeBuff)
+
+- Assignment P026-R1: determine why the public auditor API returned HTTP 502
+  after P026, restore service if within authorized scope, verify the deployed
+  detector interface, and write a frontend handoff. **Follow-up to Mohan
+  assignment 25 / approximately 29; approximately four further feature batches
+  remain. This follow-up does not mark them complete.** Starting HEAD
+  `d0fcd092fa39ca17a7efbcdaeffd4e43bd1c2eb1` (P026), clean tree, equal to
+  `origin/main`. P026's completed outcome is preserved — no reset, no rebuild.
+- **The 502 was not reproduced.** Read-only public checks:
+  `GET /auditor/api/v1/health` **200** (`ml_reachable:true`) and
+  `GET /auditor/api/v1/detectors` **200** (full three-detector P026 catalogue)
+  at 2026-09-25 02:10:01 and 02:10:19 +0530, and again at 2026-09-24
+  20:44:43Z (health 0.20 s, detectors 0.17 s). `/auditor/api/v1/imports?page=1&page_size=1`
+  **200**; `/auditor` **301** (prefix redirect, not a failure). CORS preflight
+  `OPTIONS /auditor/api/v1/analysis/jobs` with
+  `Origin: https://enersave-coral.vercel.app` returned **204** with
+  `Access-Control-Allow-Origin`/`-Methods`/`-Headers` as documented. A single
+  earlier probe in the preceding layer had returned 502; the cause is
+  **unknown and not reproduced**, no causal link to P026 was established, and
+  **no restart, redeploy, Nginx, PM2 or VPS action was taken** (a healthy
+  service must not be restarted). No browser verification is claimed.
+- **Deployed revision actually observed:** the deployed service serves
+  `GET /api/v1/detectors`, a route that only exists in P026 code, so the P026
+  revision is **deployed**, not merely pushed. The exact deployed Git hash
+  cannot be read from the public API; the minimal read-only VPS commands
+  (`pm2 status`, bounded `pm2 logs`, `ss -ltnp | grep 19002`,
+  `git rev-parse HEAD`, `git status --short`) are recorded in the evidence §7.
+  VPS access was not exercised and was not needed for recovery.
+- **Changes (no application source touched):**
+  `test/detectors.test.ts` — new regression test that a failed detector job
+  retains its `detector.id`, surfaces `PYTHON_UNAVAILABLE`, leaks no
+  stack/Traceback, persists zero findings and survives a DB reopen;
+  `scripts/check-detector-http.mjs` — added vacancy default-when-omitted,
+  window-validation rejections (`reference_after_evaluation` → 422
+  `field: reference_window`; unaligned → 422 matching `/align/`),
+  not-assessed (`unsupported_aggregation`, `assessment_source:
+  auditor_precheck`, 0 findings) distinct from evaluated-no-findings, and
+  no-invented-savings/cost assertions;
+  `scripts/check-analysis-http.mjs` — Windows portability fix only
+  (`git archive --format=tar -o <file>` plus relative extraction path with
+  `cwd`, replacing the zip-through-GNU-tar path that failed with
+  `tar: Cannot connect to C: resolve failed`). Requested regression check was
+  not blocked; the specific harness was fixed without unrelated refactoring.
+- **Checks:** `npm test` **37/37** (36 + 1 new), `verify:contract` **75/75**,
+  `validate:schema` **24/24**, typecheck/lint/build 0, `check:detector-http`
+  **pass** (pinned Python `a0a86cc`, 7 detector requests, both paths, max 1,440
+  device/1,440 room records per section), `check:analysis-http` **pass**
+  (previously failing on this Windows checkout). Contract manifest independently
+  re-checked: 0 hash mismatches, 0 CRLF.
+- Docs: created `docs/P026_R1_DEPLOYMENT_RECOVERY_EVIDENCE.md` (including the
+  copyable frontend handoff: exact catalogue response, exact POST bodies for
+  vacancy/excess_consumption/gradual_trend, exact GET job-result nesting,
+  `result.findings_pagination` location and meaning, overall/per-device status
+  and `assessment_source`, exclusions/warnings/`other_changes`, error codes and
+  limitations); updated `docs/ACTIVE_TASK.md`, `docs/HANDOFF.md`,
+  `docs/AUDITOR_API_EXAMPLES.md`, this log.
+- Since no application source, route, migration, contract or configuration
+  changed, **no new application release was required or produced**; a push does
+  not prove a deployment, and no deployment was triggered manually.
+- Processes: only ephemeral loopback Python/Node instances started by the
+  harnesses (each cleaned up by the harness). No task-owned process remains; no
+  foreign process was stopped; ports 19001–19003 (owned by another local
+  process) were never touched; the production database was never written to.
+- Review status: pending. Exact next action: frontend integration in
+  `auditor-frontend` (separate assignment) using the P026-R1 evidence handoff.
+  Stop after P026-R1.

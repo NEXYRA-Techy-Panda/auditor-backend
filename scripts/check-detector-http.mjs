@@ -49,7 +49,9 @@ async function waitHealth(url, child, stderrPath) {
   throw new Error(`Pinned Python did not become healthy: ${readFileSync(stderrPath, 'utf8')}`);
 }
 
-function dataset({ id, resolutionSeconds, days, power, deviceType = 'lighting' }) {
+const fixturePath = join(repo, 'contracts', 'v1', 'fixtures', 'reference.json');
+
+function dataset({ id, resolutionSeconds, days, power, deviceType = 'lighting', appliesTo = 'device:light-a' }) {
   const start = START;
   const end = start + days * DAY;
   const step = resolutionSeconds * 1000;
@@ -78,7 +80,7 @@ function dataset({ id, resolutionSeconds, days, power, deviceType = 'lighting' }
     rooms: [{ room_id: 'room-a', name: 'Open workspace', room_type: 'open_workspace', capacity: 8, floor_area_m2: 40 }],
     devices: [{ device_id: 'light-a', room_id: 'room-a', name: 'Lighting A', device_type: deviceType, quantity: 1,
       nominal_power_w: 600, standby_power_w: 0, power_factor: 1, always_on: false, control: 'scheduled', controls: ['power'] }],
-    policies: [{ policy_id: 'pol-light-a', version: 1, applies_to: 'device:light-a', kind: 'lighting_schedule',
+    policies: [{ policy_id: 'pol-light-a', version: 1, applies_to: appliesTo, kind: 'lighting_schedule',
       effective_from_utc: iso(start), rules: { on_during_hours: true, vacancy_grace_seconds: 300 } }],
     room_intervals, device_intervals };
 }
@@ -147,10 +149,14 @@ try {
 
   const submit = async (datasetId, detector, reference, evaluation) => {
     const queued = await fetch(`${auditUrl}/api/v1/analysis/jobs`, { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ dataset_id: datasetId, detector, reference_window: reference, evaluation_window: evaluation }) });
+      body: JSON.stringify(detector === 'vacancy'
+        ? { dataset_id: datasetId }
+        : { dataset_id: datasetId, detector, reference_window: reference, evaluation_window: evaluation }) });
     const accepted = await queued.text();
     assert.equal(queued.status, 202, accepted);
-    const jobId = JSON.parse(accepted).data.job_id;
+    const acceptedData = JSON.parse(accepted).data;
+    assert.equal(acceptedData.detector, detector, 'the queued response always carries the detector identity');
+    const jobId = acceptedData.job_id;
     for (let attempt = 0; attempt < 1500; attempt++) {
       const body = await (await fetch(`${auditUrl}/api/v1/analysis/jobs/${jobId}?page_size=50`)).json();
       if (body.data.status === 'completed' || body.data.status === 'failed') {
@@ -162,12 +168,41 @@ try {
     throw new Error('detector job did not settle within 30 seconds');
   };
 
+  const window = (fromDays, toDays) => ({ start_utc: iso(START + fromDays * DAY), end_utc: iso(START + toDays * DAY) });
+
+  const catalogue = await (await fetch(`${auditUrl}/api/v1/detectors`)).json();
+  assert.deepEqual(catalogue.data.detectors.map((entry) => entry.id), ['vacancy', 'excess_consumption', 'gradual_trend']);
+  assert.equal(catalogue.data.limits.max_section_records, 2000);
+
+  // Vacancy must stay the default and keep its previous behaviour and shape.
+  const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));
+  database.storeDataset({ datasetId: 'dataset-p026-vacancy', sourceFormat: 'json', sourceResolutionSeconds: 60,
+    semanticFingerprint: 'p026-vacancy', data: fixture });
+  const vacancy = await submit('dataset-p026-vacancy', 'vacancy');
+  assert.equal(vacancy.method_version, 'vacant-beyond-grace-v1');
+  assert.equal(vacancy.result.findings.length, 1);
+  assert.equal(vacancy.result.findings[0].finding_type, 'vacant_but_on');
+  assert.equal(vacancy.result.findings[0].avoidable_energy_kwh, 0.01);
+  assert.equal(vacancy.detector, undefined,
+    'the vacancy result keeps its documented shape; the additive detector block exists only for the two new detectors');
+
   const minute = dataset({ id: 'minute', resolutionSeconds: 60, days: 5,
     power: (offset) => (offset < 3 * DAY ? 600 : 1000) });
   database.storeDataset({ datasetId: 'dataset-p026-minute', sourceFormat: 'json', sourceResolutionSeconds: 60,
     semanticFingerprint: 'p026-minute', data: minute });
 
-  const window = (fromDays, toDays) => ({ start_utc: iso(START + fromDays * DAY), end_utc: iso(START + toDays * DAY) });
+  // Reference/evaluation validation is enforced before queueing.
+  const rejected = await fetch(`${auditUrl}/api/v1/analysis/jobs`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dataset_id: 'dataset-p026-minute', detector: 'excess_consumption',
+      reference_window: window(2, 3), evaluation_window: window(1, 2) }) });
+  assert.equal(rejected.status, 422);
+  assert.equal((await rejected.json()).error.field, 'reference_window');
+  const unaligned = await fetch(`${auditUrl}/api/v1/analysis/jobs`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ dataset_id: 'dataset-p026-minute', detector: 'gradual_trend',
+      reference_window: { start_utc: iso(START + 30_000), end_utc: iso(START + 90_000) },
+      evaluation_window: { start_utc: iso(START + 120_000), end_utc: iso(START + 180_000) } }) });
+  assert.equal(unaligned.status, 422);
+  assert.match((await unaligned.json()).error.message, /align/);
   const increased = await submit('dataset-p026-minute', 'excess_consumption', window(0, 2), window(2, 4));
   assert.equal(increased.result.status, 'findings_detected', JSON.stringify(increased.result.devices));
   assert.equal(increased.result.findings.length, 1);
@@ -177,6 +212,28 @@ try {
   assert.equal(increased.result.aggregation.resolutions_by_device['light-a'], 300,
     'minute readings are aggregated onto a requested contract interval that fits the bound');
   assert.equal(increased.result.warnings.some((warning) => warning.code === 'AGGREGATED_INTERVALS'), true);
+  assert.equal(increased.detector.method_version, 'excess-power-mad-v1', 'job polling keeps the detector identity');
+  assert.equal(increased.result.totals.avoidable_energy_kwh, undefined, 'a deviation is never reported as avoidable energy');
+  assert.equal(increased.result.totals.dataset_cost_inr, undefined, 'detector results are never priced');
+  assert.equal(increased.result.findings[0].avoidable_energy_kwh, undefined);
+  assert.equal(increased.result.findings[0].avoidable_cost_inr, undefined);
+  assert.match(increased.result.findings[0].energy_note, /NOT a guaranteed avoidable amount/);
+  assert.deepEqual(increased.result.aggregation.excluded_device_bins['light-a'], undefined,
+    'fully-on minute data aggregates without exclusions');
+
+  // A referenced policy that is not device-scoped cannot be sent to Python, so
+  // the device is reported as not assessed rather than as evaluated-no-findings.
+  const misapplied = dataset({ id: 'scope', resolutionSeconds: 3600, days: 5, power: () => 600,
+    appliesTo: 'building:nexyra-demo-office' });
+  database.storeDataset({ datasetId: 'dataset-p026-scope', sourceFormat: 'json', sourceResolutionSeconds: 3600,
+    semanticFingerprint: 'p026-scope', data: misapplied });
+  const notAssessed = await submit('dataset-p026-scope', 'excess_consumption', window(0, 1), window(1, 3));
+  assert.equal(notAssessed.result.status, 'unsupported_aggregation');
+  assert.equal(notAssessed.result.findings.length, 0);
+  assert.equal(notAssessed.result.devices[0].assessment_source, 'auditor_precheck');
+  assert.match(notAssessed.result.devices[0].reason, /device-scoped/);
+  assert.notEqual(notAssessed.result.status, 'evaluated_no_deviation',
+    'not assessed must stay distinct from evaluated with no deviation');
 
   const stable = await submit('dataset-p026-minute', 'excess_consumption', window(0, 1), window(1, 2));
   assert.equal(stable.result.status, 'evaluated_no_deviation');
@@ -229,6 +286,12 @@ try {
     python_model_available: pythonHealth.data.model_available, detector_requests: observed.calls,
     detector_paths: [...observed.paths].sort(), max_device_records_per_section: observed.maxDevice,
     max_room_records_per_section: observed.maxRoom,
+    vacancy: { default_when_omitted: true, method_version: vacancy.method_version, findings: vacancy.result.findings.length,
+      avoidable_energy_kwh: vacancy.result.findings[0].avoidable_energy_kwh,
+      result_detector_block_absent: vacancy.detector === undefined },
+    validation: { reference_after_evaluation: rejected.status, unaligned_window: unaligned.status },
+    not_assessed: { status: notAssessed.result.status, assessment_source: notAssessed.result.devices[0].assessment_source,
+      findings: notAssessed.result.findings.length },
     anomalies: { status: increased.result.status, findings: increased.result.findings.length,
       observed_w: increased.result.findings[0].observed.value, reference_median_w: increased.result.findings[0].expected.value,
       threshold_w: increased.result.findings[0].threshold_w,
