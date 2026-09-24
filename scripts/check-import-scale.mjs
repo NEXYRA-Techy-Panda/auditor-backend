@@ -1,5 +1,5 @@
 // Bounded end-to-end import exercise for a 31-day, one-minute, 18-device CSV.
-// Generates all data in OS temp storage, starts only its own server on port 4001,
+// Generates all data in OS temp storage, starts only its own server on port 19002,
 // then removes its upload and temporary database.
 import { once } from 'node:events';
 import { createWriteStream, mkdtempSync, openAsBlob, rmSync, statSync } from 'node:fs';
@@ -45,7 +45,7 @@ try {
   const portProbe = createServer();
   await new Promise((resolveListen, rejectListen) => {
     portProbe.once('error', rejectListen);
-    portProbe.listen(4001, '127.0.0.1', () => portProbe.close(resolveListen));
+    portProbe.listen(19002, '127.0.0.1', () => portProbe.close(resolveListen));
   });
 
   const output = createWriteStream(csvPath, { encoding: 'utf8' });
@@ -74,7 +74,7 @@ try {
 
   server = spawn(process.execPath, ['dist/server.js'], {
     cwd: root, stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, HOST: '127.0.0.1', PORT: '4001', DATABASE_PATH: dbPath },
+    env: { ...process.env, HOST: '127.0.0.1', PORT: '19002', DATABASE_PATH: dbPath },
   });
   console.log(`scale_server_pid=${server.pid}`);
   server.stdout.setEncoding('utf8').on('data', (chunk) => process.stdout.write(chunk));
@@ -82,21 +82,21 @@ try {
   let ready = false;
   for (let attempt = 0; attempt < 100; attempt++) {
     if (server.exitCode !== null) throw new Error(`Scale server exited early (${server.exitCode})`);
-    try { const health = await fetch('http://127.0.0.1:4001/api/v1/health'); if (health.ok) { ready = true; break; } }
+    try { const health = await fetch('http://127.0.0.1:19002/api/v1/health'); if (health.ok) { ready = true; break; } }
     catch { /* The server is still starting; retry within the bounded deadline. */ }
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
   }
-  if (!ready) throw new Error('Scale server did not become ready on port 4001');
+  if (!ready) throw new Error('Scale server did not become ready on port 19002');
 
   const form = new FormData();
   form.append('file', await openAsBlob(csvPath), 'month.csv');
   const started = performance.now();
-  const response = await fetch('http://127.0.0.1:4001/api/v1/imports', { method: 'POST', body: form });
+  const response = await fetch('http://127.0.0.1:19002/api/v1/imports', { method: 'POST', body: form });
   const elapsedSeconds = (performance.now() - started) / 1000;
   const payload = await response.json();
   if (response.status !== 201) throw new Error(`Month-size import failed (${response.status}): ${JSON.stringify(payload).slice(0, 1000)}`);
   const datasetId = payload.data.dataset_id;
-  const summaryResponse = await fetch(`http://127.0.0.1:4001/api/v1/imports/${datasetId}/summary`);
+  const summaryResponse = await fetch(`http://127.0.0.1:19002/api/v1/imports/${datasetId}/summary`);
   const summary = await summaryResponse.json();
   const expected = energyPerInterval * rowCount;
   if (Math.abs(summary.data.energy_kwh - expected) > rowCount * 1e-9) throw new Error('Month-size total did not match generated readings');

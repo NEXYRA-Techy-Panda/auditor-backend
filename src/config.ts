@@ -19,6 +19,12 @@ export interface Config {
 
 export class ConfigError extends Error {}
 
+/** Fixed VPS/runtime listener. PORT is intentionally ignored. */
+export const SERVER_PORT = 19002;
+
+/** Same-host private Python service after the fixed-port deployment change. */
+export const DEFAULT_ML_SERVICE_URL = "http://127.0.0.1:19003";
+
 type Env = Record<string, string | undefined>;
 
 export function intInRange(env: Env, name: string, fallback: number, min: number, max: number): number {
@@ -55,12 +61,12 @@ export function parseSizeLimit(name: string, raw: string): string {
 
 export function loadConfig(env: Env = process.env): Config {
   return {
-    port: intInRange(env, 'PORT', 4001, 0, 65535),
+    port: SERVER_PORT,
     host: env.HOST || '127.0.0.1',
     frontendOrigin: parseOrigin('FRONTEND_ORIGIN', env.FRONTEND_ORIGIN || 'http://localhost:3001'),
     jsonBodyLimit: parseSizeLimit('JSON_BODY_LIMIT', env.JSON_BODY_LIMIT || '100kb'),
     shutdownTimeoutMs: intInRange(env, 'SHUTDOWN_TIMEOUT_MS', 10000, 0, 600000),
-    mlServiceUrl: parseOrigin('ML_SERVICE_URL', env.ML_SERVICE_URL || 'http://localhost:8000'),
+    mlServiceUrl: parseOrigin('ML_SERVICE_URL', env.ML_SERVICE_URL || DEFAULT_ML_SERVICE_URL),
     mlTimeoutMs: intInRange(env, 'ML_TIMEOUT_MS', 10000, 100, 60000),
     databasePath: env.DATABASE_PATH || './data/auditor.sqlite',
     databaseBusyTimeoutMs: intInRange(env, 'DATABASE_BUSY_TIMEOUT_MS', 5000, 0, 60000),

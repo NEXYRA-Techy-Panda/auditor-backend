@@ -7,7 +7,7 @@ project.
   validation/persistence, analytics, tariff handling, forecasts (via Python),
   comparison, and report data. Calls `energy-ml-service` server-side.
 - **Owner**: Mohan.
-- **Local port**: `4001`. Python service: `http://localhost:8000`.
+- **Fixed port**: `19002`. Private Python service: `http://127.0.0.1:19003`.
 
 ## Status (P023 A5-backend, 2026-09-24)
 
@@ -29,7 +29,7 @@ calendar-weekday analysis use persisted device interval energy only. See
 
 ```sh
 npm ci                     # install exact versions from package-lock.json
-npm run dev                # tsx watch src/server.ts  -> http://localhost:4001
+npm run dev                # tsx watch src/server.ts  -> http://localhost:19002
 npm run build              # tsc -> dist/
 npm start                  # node dist/server.js (run build first)
 npm run typecheck
@@ -37,7 +37,7 @@ npm run lint
 npm test                   # node:test via tsx (real HTTP on an ephemeral port)
 npm run verify:contract    # dependency-free contract checks (read-only bundle)
 npm run validate:schema    # formal JSON Schema 2020-12 validation (Ajv)
-npm run check:import-scale # generated 31-day CSV over HTTP on port 4001
+npm run check:import-scale # generated 31-day CSV over HTTP on port 19002
 npm run check:analysis-http # isolated P010 snapshot + auditor scratch DB
 npm run check:forecast-http # isolated P013 snapshot + generated history + scratch DB
 ```
@@ -56,7 +56,7 @@ It never resets existing data. Local database files, WAL and shared-memory
 sidecars are ignored by Git. The auditor database is private and independent
 from the simulator database.
 
-Health check: `curl http://localhost:4001/api/v1/health`.
+Health check: `curl http://localhost:19002/api/v1/health`.
 
 ## Import API
 
@@ -146,9 +146,10 @@ and every deduplicated reading. Tariffs are outside dataset content.
 ## Configuration
 
 Copy `.env.example` to `.env` for local overrides (`.env` is git-ignored;
-real environment variables take precedence). Variables: `PORT` (4001),
+real environment variables take precedence). The HTTP listener port is fixed
+in source at `19002`; `PORT` is intentionally ignored. Other variables:
 `HOST` (127.0.0.1), `FRONTEND_ORIGIN` (http://localhost:3001; the only CORS origin — CORS
-is not authentication), `ML_SERVICE_URL` (http://localhost:8000; origin only), `ML_TIMEOUT_MS` (10000), `JSON_BODY_LIMIT` (100kb; larger JSON
+is not authentication), `ML_SERVICE_URL` (http://localhost:19003; origin only), `ML_TIMEOUT_MS` (10000), `JSON_BODY_LIMIT` (100kb; larger JSON
 bodies get 413 `REQUEST_TOO_LARGE`), `SHUTDOWN_TIMEOUT_MS` (10000).
 Local development scaffold only — not approval to expose endpoints publicly.
 

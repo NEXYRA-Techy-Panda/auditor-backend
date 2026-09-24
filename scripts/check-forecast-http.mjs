@@ -124,7 +124,11 @@ try {
 
   const pythonPort = await freePort();
   const pythonUrl = `http://127.0.0.1:${pythonPort}`;
-  pythonProcess = spawn(pythonExe, ['-B', '-m', 'app'], { cwd: tempRoot, windowsHide: true,
+  // The production launcher has a fixed 19003 port. Test isolated ASGI startup
+  // explicitly so this check can use an ephemeral loopback port without adding
+  // a runtime override to the service.
+  pythonProcess = spawn(pythonExe, ['-B', '-m', 'uvicorn', 'app.main:app',
+    '--host', '127.0.0.1', '--port', String(pythonPort)], { cwd: tempRoot, windowsHide: true,
     env: { ...process.env, HOST: '127.0.0.1', PORT: String(pythonPort) },
     stdio: ['ignore', stdoutFd, stderrFd] });
   const healthData = (await waitHealth(pythonUrl, pythonProcess, stderrPath)).data;
@@ -140,7 +144,7 @@ try {
     } });
   const jobs = new AnalysisJobManager(database, new AnalysisBatchRunner(database, python), new ForecastRunner(database, python));
   jobs.recoverAfterRestart();
-  auditorServer = createApp(loadConfig({ PORT: String(auditorPort), ML_SERVICE_URL: pythonUrl, ML_TIMEOUT_MS: '15000' }),
+  auditorServer = createApp(loadConfig({ ML_SERVICE_URL: pythonUrl, ML_TIMEOUT_MS: '15000' }),
     database, { python, jobs }).listen(auditorPort, '127.0.0.1');
   await new Promise((resolve, reject) => auditorServer.once('listening', resolve).once('error', reject));
   const base = `http://127.0.0.1:${auditorPort}`;
