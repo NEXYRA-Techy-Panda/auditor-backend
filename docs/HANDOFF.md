@@ -15,8 +15,9 @@
 - Verification used the main worktree's installed SQLite 3.53.4 with in-memory
   and scratch DB fixtures plus the actual loopback HTTP route. `npm test`
   passed 59/59; typecheck, lint, build and diff check passed. No production DB
-  or API request was used. Push/release status must be recorded only after
-  observing those actions separately.
+  or API request was used. Commit `c5db138d437280c77ae90c488ac067f8720b446e`
+  is on local main and `origin/main` (confirmed with `git ls-remote`). This is
+  a Git publication observation; no deployment status is claimed.
 - Next action: M-A wires the documented API into `auditor-frontend`; print
   verification and matched-scenario provenance need their own follow-up.
 

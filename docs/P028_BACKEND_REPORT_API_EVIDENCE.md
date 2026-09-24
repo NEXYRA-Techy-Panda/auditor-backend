@@ -87,9 +87,12 @@ stored `<job-id>:<finding-id>` strings; energy is kWh, monetary values INR,
 tariff INR/kWh, periods days/months, ROI percent, payback months.
 
 The merge preserved P026-R1's docs, harness changes, and failed-job regression;
-the prepared branch/worktree remains intact. Local verification is complete;
-review, normal push, and any post-push deployment observation remain pending.
-Exact next action: M-A wires `POST /api/v1/reports/preview` into the existing
+the prepared branch/worktree remains intact. Feature/merge commit
+`c5db138d437280c77ae90c488ac067f8720b446e` is both local `main` and the
+observed `origin/main` hash (`git ls-remote origin refs/heads/main`). This
+confirms Git publication only. No production preview or deployment check was
+performed; review remains pending. Exact next action: M-A wires
+`POST /api/v1/reports/preview` into the existing
 report UI using these examples, then separately verifies print output and
 matched-scenario comparison only after external-input provenance exists.
 

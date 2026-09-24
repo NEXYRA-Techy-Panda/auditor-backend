@@ -597,7 +597,9 @@ correction entry; do not rewrite history.
   (3/3), and `git diff --check` passed. No production DB, preview request,
   service restart, external tool install, benchmark, or training.
 - Evidence: `docs/P028_BACKEND_REPORT_API_EVIDENCE.md`; exact frontend response
-  examples: `docs/AUDITOR_API_EXAMPLES.md`. Local commit and push are not yet
-  recorded; review pending. Exact next action: M-A integrates this API in the
-  separate frontend task; print verification and matched-scenario comparison
-  remain follow-ups.
+  examples: `docs/AUDITOR_API_EXAMPLES.md`. Feature/merge commit
+  `c5db138d437280c77ae90c488ac067f8720b446e` is local and `origin/main`
+  (confirmed with `git ls-remote`). Git publication is confirmed; deployment
+  was not checked and no preview was submitted to production. Review pending.
+  Exact next action: M-A integrates this API in the separate frontend task;
+  print verification and matched-scenario comparison remain follow-ups.

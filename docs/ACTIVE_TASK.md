@@ -12,6 +12,9 @@
 - Main had no uncommitted work. Prepared branch `mohan/p028-report-math-prep`
   was integrated by a normal merge while retaining main's P026-R1 evidence,
   script fixes and detector-failure regression; prepared worktree remains.
+- Feature/merge commit: `c5db138d437280c77ae90c488ac067f8720b446e`.
+  `git ls-remote origin refs/heads/main` observed the same remote hash after
+  push. This confirms publication to Git only; deployment was not checked.
 - Main SQLite loaded in-memory successfully (SQLite 3.53.4). Scratch SQLite and
   loopback HTTP route checks passed; `npm test` 59/59; typecheck, lint, build,
   and `git diff --check` passed. No production database/request or service
