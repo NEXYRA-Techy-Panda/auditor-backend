@@ -13,6 +13,9 @@ Exclusive write scope: `auditor-backend`. Starting HEAD:
 - Contract and sibling repositories unchanged.
 - Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` was pushed normally
   to `origin/main`; `git ls-remote` matched local HEAD at publication.
+- Final continuity commit `dec0c164eace26051a010b4ff2aefe113a0e9650` was also
+  pushed normally; remote/local `main` matched and the auditor-backend tree was
+  clean.
 
 ## Completed
 
@@ -43,7 +46,8 @@ Exclusive write scope: `auditor-backend`. Starting HEAD:
 
 ## Exact next action
 
-Finish continuity records, commit/push those documentation updates normally,
-verify local HEAD matches `origin/main` and working tree is clean, then hand off
-to OpenCode to consume the documented analytics routes in auditor-frontend.
-Stop after P023; review remains pending.
+Exact next action: OpenCode integrates the documented office timeseries,
+room/device breakdown and weekday routes in `auditor-frontend`, displaying
+coverage/provenance and distinguishing full-period from page totals. Concurrent
+frontend changes were observed and left untouched. Stop after P023; review
+remains pending.

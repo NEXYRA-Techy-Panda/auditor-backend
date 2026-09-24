@@ -409,8 +409,11 @@ correction entry; do not rewrite history.
   and gap-assessment fields, new historical HTTP test. No DB migration or
   dependency change.
 - No task-owned processes/temp directories remain; ports 4001 and 8000 are
-  clear. Python/frontend/simulator siblings and shared contract remain
-  untouched. Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` was
-  pushed normally; remote and local `main` matched. Next: publish these final
-  continuity updates, verify clean tree and remote `main`, then OpenCode
-  consumes the documented routes. Review pending.
+  clear. Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` and
+  continuity commit `dec0c164eace26051a010b4ff2aefe113a0e9650` were pushed
+  normally; local and remote `main` matched, working tree clean. At final
+  inspection, auditor-frontend had concurrent changes in `app/lib/forecast.ts`
+  and its continuity docs; they were preserved untouched. Other siblings and
+  contract remain unchanged. Exact next action: OpenCode integrates the
+  documented historical analytics into auditor-frontend; review pending, stop
+  after P023.
