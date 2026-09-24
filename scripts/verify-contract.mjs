@@ -1,4 +1,4 @@
-// verify-contract.mjs — dependency-free semantic checks for contract v1.0.0.
+// verify-contract.mjs — dependency-free semantic checks for contract v1.0.1.
 // Run from the repository root:  node scripts/verify-contract.mjs
 // Uses Node built-ins only (node:fs, node:path, node:crypto). No npm install.
 //
@@ -82,7 +82,7 @@ function reconstructFromCsv(csvText) {
   let env;
   try { env = JSON.parse(col(data[0], 'meta_run')); }
   catch { fail('ENVELOPE_UNPARSEABLE', 'meta_run is not JSON'); }
-  if (env.schema_version !== '1.0.0') fail('UNSUPPORTED_VERSION', String(env.schema_version));
+  if (env.schema_version !== '1.0.1') fail('UNSUPPORTED_VERSION', String(env.schema_version));
   for (const k of ['building', 'run', 'export', 'rooms', 'devices', 'policies']) {
     if (env[k] == null) fail('ENVELOPE_INCOMPLETE', `missing ${k}`);
   }
@@ -165,9 +165,9 @@ const refRaw = readFileSync(refPath, 'utf8');
 const csvRaw = readFileSync(csvPath, 'utf8');
 
 // ---- versions ----
-check('schema_version is 1.0.0', ref.schema_version === '1.0.0', ref.schema_version);
-check('expected.json schema_version is 1.0.0', exp.schema_version === '1.0.0');
-check('manifest contract_version is 1.0.0', man.contract_version === '1.0.0');
+check('schema_version is 1.0.1', ref.schema_version === '1.0.1', ref.schema_version);
+check('expected.json schema_version is 1.0.1', exp.schema_version === '1.0.1');
+check('manifest contract_version is 1.0.1', man.contract_version === '1.0.1');
 check('source is simulation', ref.source === 'simulation');
 check('fixture marked synthetic', ref.synthetic === true && typeof ref.synthetic_label === 'string');
 
@@ -210,6 +210,26 @@ check('interval rooms/devices exist',
   ref.device_intervals.every((d) => devIds.has(d.device_id) && roomIds.has(d.room_id)) &&
   ref.room_intervals.every((r) => roomIds.has(r.room_id)));
 check('policy refs resolve', ref.device_intervals.every((d) => polKeys.has(d.policy_ref)));
+// Kind-specific policy rule structures (dependency-free spot check mirroring
+// the schema: required fields present, unknown fields rejected).
+{
+  const SPEC = {
+    office_hours: { required: ['working_days_iso', 'open_local', 'close_local', 'overnight'], allowed: ['working_days_iso', 'open_local', 'close_local', 'overnight'] },
+    lighting_schedule: { required: ['on_during_hours', 'vacancy_grace_seconds'], allowed: ['on_during_hours', 'vacancy_grace_seconds'] },
+    device_schedule: { required: ['office_hours_ref'], allowed: ['office_hours_ref', 'on_windows', 'vacancy_grace_seconds', 'allow_manual_override'] },
+    always_on: { required: ['always_on_exception'], allowed: ['always_on_exception'] },
+    occupancy: { required: ['mode'], allowed: ['mode', 'auto_allocate'] },
+  };
+  for (const p of ref.policies) {
+    const tag = `policy ${p.policy_id}:${p.version}`;
+    const spec = SPEC[p.kind];
+    check(`${tag} kind known`, !!spec, p.kind);
+    if (!spec) continue;
+    const keys = Object.keys(p.rules);
+    check(`${tag} rules complete`, spec.required.every((k) => keys.includes(k)), keys.join(','));
+    check(`${tag} rules closed (no unknown fields)`, keys.every((k) => spec.allowed.includes(k)), keys.join(','));
+  }
+}
 const dKeys = ref.device_intervals.map((d) => `${d.run_id}|${d.device_id}|${d.interval_start_utc}`);
 const rKeys = ref.room_intervals.map((r) => `${r.run_id}|${r.room_id}|${r.interval_start_utc}`);
 check('device interval keys unique', new Set(dKeys).size === dKeys.length);
@@ -222,9 +242,13 @@ for (const id of devIds) {
 }
 check('energy formula holds on all device intervals (1e-9)',
   ref.device_intervals.every((d) => approx(d.energy_kwh, (d.avg_power_w * d.interval_seconds) / 3600000, TOL_VALUE)));
-check('V*I*pf triple exact (rel 1e-9) wherever reported',
+// Constant-fixture check only (CONTRACT.md §3.4): this asserts a property of the
+// constant-load fixture, not a universal export constraint. Interval averages
+// of V and I are not generally required to multiply into average real power.
+check('constant-fixture V*I*pf relationship holds (rel 1e-9)',
   ref.device_intervals.every((d) => {
     if (d.avg_voltage_v == null || d.avg_current_a == null) return true;
+    if (!(d.avg_power_w > 0)) return true; // never divide by zero at zero power
     const p = d.avg_voltage_v * d.avg_current_a * d.power_factor;
     return Math.abs(p - d.avg_power_w) / d.avg_power_w <= TOL_TRIPLE_REL;
   }));
@@ -317,6 +341,24 @@ if (recon) {
   check('analytic total matches expectation', approx((RB.load_w * RB.interval_seconds * RB.intervals) / 3600000, RB.analytic_total_kwh, 1e-12));
   check('rounded-interval sums stay within budget', approx(accRounded, RB.analytic_total_kwh, RB.budget_kwh), `|${accRounded} - ${RB.analytic_total_kwh}|`);
   check('unrounded accumulation is sane', approx(acc, RB.analytic_total_kwh, 1e-9));
+}
+
+// ---- fractional export precision (9dp power, 12dp energy, every nominal interval) ----
+// Stored energy derives from UNROUNDED power; this checks the rounded exports
+// stay consistent. It must not be "fixed" by computing energy from display power.
+{
+  const FP = exp.fractional_power_check;
+  const r9 = (x) => Math.round(x * 1e9) / 1e9;
+  const r12 = (x) => Math.round(x * 1e12) / 1e12;
+  for (const t of FP.interval_seconds) {
+    const eExact = (FP.power_w * t) / 3600000;
+    const eExp = r12(eExact);
+    const fromRoundedPower = (r9(FP.power_w) * t) / 3600000;
+    check(`fractional ${FP.power_w} W / ${t}s exports consistent (1e-9 kWh)`,
+      approx(eExp, fromRoundedPower, FP.tolerance_kwh), `|${eExp} - ${fromRoundedPower}|`);
+    check(`fractional ${FP.power_w} W / ${t}s export rounding sane`,
+      approx(eExp, eExact, 0.5e-12 + 1e-18));
+  }
 }
 
 // ---- forbidden fields ----

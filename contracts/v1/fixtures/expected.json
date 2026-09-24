@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0.0",
+  "schema_version": "1.0.1",
   "fixture": "reference",
   "note": "Evaluation material only. Never an auditor input and never part of a telemetry export. Arithmetic is independent of application code.",
   "totals_kwh": {
@@ -56,5 +56,13 @@
     "analytic_total_kwh": 5.208,
     "max_per_value_error_kwh": 5e-13,
     "budget_kwh": 2.232e-8
+  },
+  "fractional_power_check": {
+    "note": "Exported power carries up to 9 decimals, energy up to 12. Stored energy derives from unrounded power, never from rounded display power.",
+    "power_w": 7.123456789,
+    "interval_seconds": [60, 300, 600, 900, 1800, 3600],
+    "export_dp_power": 9,
+    "export_dp_energy": 12,
+    "tolerance_kwh": 1e-9
   }
 }

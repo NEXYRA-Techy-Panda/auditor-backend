@@ -1,41 +1,41 @@
 {
-    "contract_version":  "1.0.0",
+    "contract_version":  "1.0.1",
     "canonical_repository":  "simulation-backend",
     "canonical_path":  "contracts/v1",
-    "generated_utc":  "2026-09-24T13:10:00Z",
-    "note":  "F1-R1 pre-acceptance correction. Version stays 1.0.0 (not published). Receiving these files does not prove application compatibility. See CONTRACT.md change policy.",
+    "generated_utc":  "2026-09-24T13:35:00Z",
+    "note":  "F1-R2: version 1.0.1 replaces the unaccepted 1.0.0 prototype (not published). No runtime backward compatibility is claimed. Receiving these files does not prove application compatibility. See CONTRACT.md change policy.",
     "files":  [
                   {
                       "path":  "contracts/v1/CONTRACT.md",
-                      "sha256":  "da81bf971aa753ea18cfc86f660659f45d636d7a14b4a1a79d58da0f833961d1"
+                      "sha256":  "4ae81886e46c0426d939a43eb8dc0d61f9c6e216aaf4a803c4aab662490451cf"
                   },
                   {
                       "path":  "contracts/v1/dataset.schema.json",
-                      "sha256":  "dd4feeddeee6049667941fe2596bca8c3a42c1a7df8a72f3748d2d2c5cdd35b0"
+                      "sha256":  "c995aac6aeca636b217c37ce253e9c2394487173f7b9d3815a597eeb1c7b1127"
                   },
                   {
                       "path":  "contracts/v1/CSV_COLUMNS.md",
-                      "sha256":  "b837bd0cc84edababa6fb63c8ee73ad460737599fdae66dc9ed30736c466f00e"
+                      "sha256":  "53ac7f00d642e603d7769cd8fbefd9a4d2efd51958563c3eeb087eb6d9ffbf3b"
                   },
                   {
                       "path":  "contracts/v1/API.md",
-                      "sha256":  "782cbe729355a887fe3232a68c871a9b536e8a9581712d1de3ae9641e204cfa0"
+                      "sha256":  "53bc0a2acba0e705812b3afa29266b8116b053d8befe248900ddce2bbf66b07f"
                   },
                   {
                       "path":  "contracts/v1/fixtures/reference.json",
-                      "sha256":  "2cefe8a08468dfd0df7db9bf34d8216ca95b877b6da05e573ed88682858298e0"
+                      "sha256":  "dee245eb5b3c2ee5f0f8accccb11a81f73a05396fd2ef700fe210bcf221cce8e"
                   },
                   {
                       "path":  "contracts/v1/fixtures/reference.csv",
-                      "sha256":  "29c4036eaad71642b48c98bca851155c2950ee5e6703c830dc81a2f44a899c31"
+                      "sha256":  "330afb90adc1067ce38c7960727360a014168e6bceedcf144e0b68650c8cc463"
                   },
                   {
                       "path":  "contracts/v1/fixtures/expected.json",
-                      "sha256":  "797331a7206eaf4fd38341d816835eed1e07a4fc63ff0200b8f26f646f8523a5"
+                      "sha256":  "10bfe4e7323f49acd82a5fb13595b8743638d1d8e45f7a282e2577c8989b4cf6"
                   },
                   {
                       "path":  "scripts/verify-contract.mjs",
-                      "sha256":  "3c5a6217f06dc790b093afe05adfa3216afccf0546c117d6526fee57ad1f82c0"
+                      "sha256":  "5f1df643a6b8a65bf2771750f7cbad61a2fedfa238c53d8b1b1f1d2024102933"
                   }
               ]
 }

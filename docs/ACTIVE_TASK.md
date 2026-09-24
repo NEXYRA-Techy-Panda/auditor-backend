@@ -2,12 +2,14 @@
 
 ## Layer ID
 
-F1-R1
+F1-R2
 
 ## Objective
 
-Targeted pre-acceptance corrections to contract v1.0.0 (mirrored to this
-repo). No F2.
+Targeted corrections from direct architecture review (mirror role): 9dp power
+precision, V/I semantics, kind-specific policy rules, persist-until-cleared
+overrides, concrete Python requests, full API paths + health states, version
+1.0.1. No F2.
 
 ## Task status
 
@@ -24,47 +26,44 @@ pending
 
 ## Current branch
 
-`main` (F1 `24d459d` pushed; F1-R1 commit + push authorised, identity
-repo-local)
+`main` (F1-R1 `eef4751` pushed; tree clean; repo-local identity set)
 
 ## Last checkpoint timestamp, including timezone
 
-2026-09-24 18:43:07 +05:30 (IST) — F1-R1 complete; committing and pushing.
+2026-09-24 19:07:48 +05:30 (IST) — F1-R2 completed. No AGENTS.md; tree clean;
+fetch clean.
 
 ## Applicable contract version
 
-1.0.0 retained (pre-acceptance correction; not published).
+1.0.1 (being authored; replaces unaccepted 1.0.0 prototype).
 
 ## Completed steps
 
-1. F1-R1 startup, identity, checkpoints.
-2. Corrected mirror received + verified 54/54 (all five repos).
-3. Continuity: HANDOFF addendum, log entries, F1_EVIDENCE section.
-4. Staged-file inspection: task-owned files only.
+1. Startup: context read; git state inspected; F1-R2 recorded here.
+2. Repo-local identity already configured.
 
 ## Files changed
 
-- Updated via mirror: `contracts/v1/` (7 files), `scripts/verify-contract.mjs`.
-- Updated: `docs/ACTIVE_TASK.md`, `docs/PROGRESS_LOG.md`, `docs/HANDOFF.md`,
-  `docs/F1_EVIDENCE.md`.
-- Preserved: shared context, prompts, README.
+- Updated: `docs/ACTIVE_TASK.md` (this file).
 
 ## Verification performed and actual results
 
-- 54 passed / 0 failed (final run post-mirror). Semantic checks only.
+- Branch `main`, clean tree, F1-R1 commit `eef4751`, origin in sync.
 
 ## Incomplete edits and uncommitted changes
 
-- None incomplete. Committing now.
+- None incomplete. All corrections authored, mirrored, verified; continuity
+  docs updated. Committing and pushing now.
 
 ## Blockers or unknowns
 
-- None. Push auth to be confirmed at push time.
+- None currently. Push auth to be confirmed at push time.
 
 ## Exact next action
 
-Commit corrected bundle, push `main` to origin, verify remote hash; then
-return F1-R1 evidence; do not begin F2 until its prompt is supplied.
+Corrections authored in `simulation-backend`, mirrored here and verified
+75/75. Committing, pushing `main`, verifying remote hash; then return F1-R2
+evidence. Do not begin F2.
 
 ## Related-repository dependencies
 
@@ -73,5 +72,5 @@ Siblings: 3000/4000/3001. This repo's port: 4001.
 
 ## Commit reference
 
-F1: `24d459d1bdf9b82ff2e2eb52fd754da9cf3bd7ba` (pushed, verified).
-F1-R1: recorded after push (no hash loop in docs).
+F1-R1: `eef4751b3dfcb1f9c86341117059628b66e6ed28` (pushed, verified).
+F1-R2: none yet.

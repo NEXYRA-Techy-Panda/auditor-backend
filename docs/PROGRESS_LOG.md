@@ -131,7 +131,18 @@ correction entry; do not rewrite history.
   tolerances; extended verifier). Version stays 1.0.0. No F2.
 - Startup: no AGENTS.md; clean tree at F1 commit; repo-local identity set.
 - Next action: corrections authored in `simulation-backend`, then mirrored here.
-- Review status: pending. Commit references: F1 pushed (see ACTIVE_TASK).
+- Review status: pending.
+
+---
+
+## 2026-09-24 19:07:48 +05:30 (IST) — F1-R2 completed (actual)
+
+- Corrected 1.0.1 mirror received and verified 75/75 (all five repos).
+- Continuity updated: ACTIVE_TASK completed, HANDOFF F1-R2 addendum,
+  F1_EVIDENCE F1-R2 section. Review pending; no approval claimed.
+- Next action: commit, push `main`, verify remote hash; return F1-R2 evidence.
+  Do not begin F2.
+- Commit references: F1-R1 pushed; F1-R2 recorded after push. Commit references: F1 pushed (see ACTIVE_TASK).
 
 ---
 
@@ -143,3 +154,14 @@ correction entry; do not rewrite history.
 - Next action: commit, push `main`, verify remote hash; return F1-R1 evidence.
   Do not begin F2.
 - Commit references: F1 pushed; F1-R1 recorded after push.
+
+---
+
+## 2026-09-24 19:01:33 +05:30 (IST) — F1-R2 started (actual)
+
+- Layer ID: F1-R2 (mirror repo). F1-R1 completed; review changes_requested
+  after direct inspection (CSV accepted, 54/54 confirmed).
+- Objective: receive corrected 1.0.1 mirrors. No F2.
+- Startup: no AGENTS.md; clean tree; fetch clean; repo-local identity present.
+- Next action: corrections authored in `simulation-backend`, mirrored here.
+- Review status: pending.

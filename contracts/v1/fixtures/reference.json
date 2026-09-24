@@ -246,7 +246,7 @@
     "run_start_utc": "2026-09-21T03:30:00Z",
     "scenario_id": "original"
   },
-  "schema_version": "1.0.0",
+  "schema_version": "1.0.1",
   "source": "simulation",
   "synthetic": true,
   "synthetic_label": "F1 known-answer fixture: hand-computed two-room/two-device dataset. Not measured data."

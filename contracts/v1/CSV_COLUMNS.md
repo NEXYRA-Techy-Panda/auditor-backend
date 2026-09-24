@@ -9,9 +9,9 @@ remains the canonical structured representation; both describe identical content
 - UTF-8 without BOM, LF line endings, one header row, RFC 4180 quoting: fields
   containing commas, quotes, or newlines are wrapped in double quotes with
   internal quotes doubled. A JSON envelope inside a quoted cell therefore
-  appears with every `"` doubled (`{""schema_version"":""1.0.0"",…}`).
-- Numbers use decimal dots (kWh values up to 12 decimal places, no trailing
-  zeros required). Booleans are lowercase `true`/`false`. Null (absent optional
+  appears with every `"` doubled (`{""schema_version"":""1.0.1"",…}`).
+- Numbers use decimal dots (kWh values up to 12 decimal places, power values
+  up to 9 decimal places; trailing zeros not required). Booleans are lowercase `true`/`false`. Null (absent optional
   value, or a blank metadata cell) is an empty unquoted field — never the
   strings `null`, `NaN`, or `-`.
 

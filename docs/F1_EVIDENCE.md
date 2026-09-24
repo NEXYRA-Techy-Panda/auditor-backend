@@ -67,3 +67,14 @@ Recorded in the F1 evidence report with verified remote hashes.
   validation still F2). Mirror hashes match the regenerated manifest.
 - Repo-local git identity configured.
 - Commit/push outcome recorded in the F1-R1 evidence report.
+
+---
+
+## F1-R2 corrections (2026-09-24, review pending; version 1.0.1)
+
+- Corrected 1.0.1 mirror received: 9dp power + fractional checks, V/I
+  averages, closed policy rules, persist-until-cleared overrides, concrete
+  Python requests, full API paths + health states.
+- Final: 75 passed, 0 failed in all five repos (built-ins only; formal schema
+  validation still not performed — required early F2 check).
+- Commit/push outcome recorded in the F1-R2 evidence report.

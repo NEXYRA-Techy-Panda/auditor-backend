@@ -1,8 +1,15 @@
-# NEXYRA Shared Data & Interface Contract — v1.0.0
+# NEXYRA Shared Data & Interface Contract — v1.0.1
 
-Status: **designed, review pending**. Schema version `1.0.0` names the document
+Status: **designed, review pending**. Schema version `1.0.1` names the document
 revision, not an approval. Receiving this file does not prove application
 compatibility — implementations must be verified against it.
+
+- Change record: **1.0.1** (F1-R2, pre-acceptance) replaces the unaccepted
+  1.0.0 prototype: self-contained CSV envelope (F1-R1), 9dp power precision,
+  interval-average voltage/current semantics, kind-specific policy rules,
+  persist-until-cleared overrides, concrete Python requests, full API paths
+  and scaffold-stage health states. No runtime backward compatibility is
+  claimed for the unaccepted prototype.
 
 - Canonical location: `simulation-backend/contracts/v1/` (this copy).
 - Mirrors: `contracts/v1/` in `simulation-frontend`, `auditor-frontend`,
@@ -127,8 +134,11 @@ inventories. An import must NOT be required to contain exactly five rooms or
 - Overnight windows are represented with `close_local <= open_local`
   (e.g. `22:00`–`06:00`) plus `"overnight": true`.
 - Vacancy grace period is configured in **simulated seconds** (default 300 s).
-- Manual overrides force a device state for a bounded duration; override time
-  is metered in `override_seconds` and the pre-override schedule resumes after.
+- Manual overrides persist until explicitly cleared; clearing returns control
+  to the configured policy. `override_seconds` in a device interval measures
+  actual overridden time during that interval — it is not a command timeout.
+  No automatic expiration exists in v1 (a future version may add it only as an
+  explicit opt-in). Concrete set/clear payloads are specified in API.md.
 - Always-on exceptions (refrigerator) ignore vacancy and schedules; their
   vacant operation raises no finding.
 - Configuration over a run is represented with **immutable policy versions**:
@@ -138,16 +148,43 @@ inventories. An import must NOT be required to contain exactly five rooms or
   readings; a mid-run change mints a new version (or an equivalent
   effective-time representation carrying the same information).
 
+### 2.5 Policy rule structures (all kinds, closed)
+
+`rules` is kind-specific (`dataset.schema.json` `$defs`, `additionalProperties:
+false` everywhere — unknown fields rejected). Field reference:
+
+- `office_hours` (required: all): `working_days_iso` (unique ISO days 1–7,
+  ≥1 entry; default `[1,2,3,4,5]`), `open_local`/`close_local` (`HH:MM`,
+  defaults `09:00`/`18:00`), `overnight` (boolean, default `false`).
+- `lighting_schedule` (required: all): `on_during_hours` (boolean),
+  `vacancy_grace_seconds` (integer 0–3600).
+- `device_schedule` (required: `office_hours_ref`; optional with defaults:
+  `on_windows` (array of `{days, start_local, end_local}`, default `[]`),
+  `vacancy_grace_seconds` (0–3600, default 300), `allow_manual_override`
+  (boolean, default `true`)).
+- `always_on` (required: `always_on_exception`, boolean).
+- `occupancy` (required: `mode` (`manual`/`scheduled`); optional
+  `auto_allocate`, boolean, default `true`).
+
+Link rule: a `device_schedule` applies only with its explicit
+`office_hours_ref` (`<policy_id>:<version>`). Resolution is a direct lookup of
+that exact version in the export; `effective_from_utc` orders versions but the
+importer never guesses which office-hours policy applies. Every exported
+policy is self-contained through the JSON envelope or the CSV metadata
+envelope plus its references.
+
 ## 3. Measurement contract
 
 ### 3.1 Device interval fields
 
-- `avg_power_w`: interval-average real power (W).
-- `max_power_w`: interval maximum (W).
+- `avg_power_w`: interval-average real power (W; up to 9 decimal places).
+- `max_power_w`: interval maximum (W; up to 9 decimal places).
 - `energy_kwh`: interval energy (kWh).
 - `cumulative_kwh`: cumulative energy **at interval end** (kWh), run-relative.
-- `avg_voltage_v`, `avg_current_a`: reported only when measured/modelled;
-  otherwise omitted (null behaviour: absent, not zero).
+- `avg_voltage_v`, `avg_current_a`: actual interval averages when
+  measured/modelled; otherwise omitted (null behaviour: absent, not zero).
+  Their product is NOT generally required to equal average real power —
+  see §3.4.
 - `power_factor`: assumption in force for the interval.
 - `on_fraction`: fraction of the interval the device was on (0–1).
 - `override_seconds`, `vacant_on_seconds`, `offschedule_on_seconds`: measured
@@ -170,14 +207,14 @@ available resolution.
 
 ### 3.4 Formulas
 
-- Single-phase instantaneous (simplified): `P = V × I × power_factor`.
+- `P = V × I × power_factor` is the simplified *instantaneous* engine
+  calculation, not an interval identity: interval averages of V and I do not
+  generally multiply into interval-average real power.
 - Interval energy: `energy_kwh = avg_power_w × interval_seconds / 3600000`.
-- When `avg_voltage_v`, `avg_current_a`, and `power_factor` are all reported
-  for an interval, they form one consistent operating-point triple:
-  `|V × I × pf − avg_power_w| / avg_power_w ≤ 1e-9`. When intra-interval
-  conditions varied, the exporter omits V/I (absent, never zero) instead of
-  reporting an inconsistent triple. No unexplained tolerance masks arithmetic
-  in this deterministic simulation.
+  Energy is validated against `avg_power_w` and duration only.
+- The constant-load fixture happens to satisfy the instantaneous relationship;
+  the verifier labels that a constant-fixture check, not a universal export
+  constraint. Never divide by zero when power is zero.
 
 ### 3.5 Aggregation (finer → coarser)
 
@@ -195,15 +232,23 @@ available resolution.
 ### 3.6 Precision, tolerance and rounding
 
 - Exported kWh values (`energy_kwh`, `cumulative_kwh`) carry up to 12 decimal
-  places (trailing zeros not required). W values carry up to 3 dp. UI
-  presentation rounding is separate and never feeds back into stored data.
+  places (trailing zeros not required). Exported power values (`avg_power_w`,
+  `max_power_w`) carry up to 9 decimal places — 3 were insufficient: a
+  fractional load such as 7.123456789 W over 60 s already breaches the 1e-9
+  kWh budget when power is rounded to 3 decimals. Stored energy always derives
+  from unrounded power, never from rounded display power. UI presentation
+  rounding is separate and never feeds back into stored data.
 - Internal accumulation uses unrounded energy. Never accumulate already-rounded
   display values.
 - Tolerances (absolute, kWh unless noted):
   - per-interval energy vs average power: `1e-9`;
   - adjacent cumulative-counter differences: `1e-9`;
-  - aggregated totals over `n` contributing intervals: `n × 1e-9`;
-  - V·I·pf triple: relative `1e-9` (§3.4).
+  - aggregated totals over `n` contributing intervals: `n × 1e-9`.
+- Fractional-power consistency (checked for every nominal export interval —
+  60, 300, 600, 900, 1800, 3600 s — with 7.123456789 W; parameters in
+  `fixtures/expected.json`): 9dp-rounded power and 12dp-rounded energy remain
+  within `1e-9` kWh of each other. The pre-existing monthly rounding budget
+  check is preserved.
 - Rounding budget (checked in `scripts/verify-contract.mjs`, parameters in
   `fixtures/expected.json`): a 7 W load over 44,640 one-minute intervals
   (31 days) has analytic total 5.208 kWh; summing 12 dp-rounded interval
@@ -300,6 +345,12 @@ following month exclusive) — not "next 30 days".
 Comparisons identify both `dataset_id`s, matched input provenance, period
 compatibility, and original/improved energy; savings are marked simulated.
 Prices come from explicit user tariff settings, never hidden model assumptions.
+- Auditor→Python requests carry bounded inline data prepared by Node from its
+  own database (concrete shapes, size bounds, and oversized-request behaviour
+  in API.md). Python receives values directly; it never opens Node's database,
+  filesystem, or object references. Future large-dataset processing must
+  preserve ordering and temporal context — arbitrary independent chunks are
+  insufficient for drift or grace-period analysis.
 
 ## 9. Known-answer fixture
 

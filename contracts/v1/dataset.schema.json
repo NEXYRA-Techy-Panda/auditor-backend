@@ -1,13 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://example.invalid/nexyra/contracts/v1/dataset.schema.json",
-  "title": "NEXYRA simulation dataset export (contract v1.0.0)",
+  "title": "NEXYRA simulation dataset export (contract v1.0.1)",
   "description": "Canonical JSON export envelope. Interval objects forbid unknown fields so fault labels cannot be smuggled into analysis inputs.",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema_version", "source", "synthetic", "building", "run", "export", "rooms", "devices", "policies", "room_intervals", "device_intervals"],
   "properties": {
-    "schema_version": { "const": "1.0.0" },
+    "schema_version": { "const": "1.0.1" },
     "source": { "const": "simulation" },
     "synthetic": { "type": "boolean" },
     "synthetic_label": { "type": "string" },
@@ -97,7 +97,19 @@
           "kind": { "type": "string", "enum": ["office_hours", "lighting_schedule", "device_schedule", "always_on", "occupancy"] },
           "effective_from_utc": { "$ref": "#/$defs/utc" },
           "rules": { "type": "object" }
-        }
+        },
+        "allOf": [
+          { "if": { "properties": { "kind": { "const": "office_hours" } }, "required": ["kind"] },
+            "then": { "properties": { "rules": { "$ref": "#/$defs/officeHoursRules" } } } },
+          { "if": { "properties": { "kind": { "const": "lighting_schedule" } }, "required": ["kind"] },
+            "then": { "properties": { "rules": { "$ref": "#/$defs/lightingScheduleRules" } } } },
+          { "if": { "properties": { "kind": { "const": "device_schedule" } }, "required": ["kind"] },
+            "then": { "properties": { "rules": { "$ref": "#/$defs/deviceScheduleRules" } } } },
+          { "if": { "properties": { "kind": { "const": "always_on" } }, "required": ["kind"] },
+            "then": { "properties": { "rules": { "$ref": "#/$defs/alwaysOnRules" } } } },
+          { "if": { "properties": { "kind": { "const": "occupancy" } }, "required": ["kind"] },
+            "then": { "properties": { "rules": { "$ref": "#/$defs/occupancyRules" } } } }
+        ]
       }
     },
     "room_intervals": {
@@ -155,6 +167,76 @@
   },
   "$defs": {
     "utc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
-    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_-]+$" }
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_-]+$" },
+    "localTime": { "type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$" },
+    "isoWeekdays": {
+      "type": "array", "minItems": 1, "maxItems": 7, "uniqueItems": true,
+      "items": { "type": "integer", "minimum": 1, "maximum": 7 }
+    },
+    "officeHoursRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["working_days_iso", "open_local", "close_local", "overnight"],
+      "properties": {
+        "working_days_iso": { "$ref": "#/$defs/isoWeekdays" },
+        "open_local": { "$ref": "#/$defs/localTime" },
+        "close_local": { "$ref": "#/$defs/localTime" },
+        "overnight": { "type": "boolean" }
+      }
+    },
+    "lightingScheduleRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["on_during_hours", "vacancy_grace_seconds"],
+      "properties": {
+        "on_during_hours": { "type": "boolean" },
+        "vacancy_grace_seconds": { "type": "integer", "minimum": 0, "maximum": 3600 }
+      }
+    },
+    "deviceScheduleRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["office_hours_ref"],
+      "properties": {
+        "office_hours_ref": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+:[0-9]+$",
+          "description": "Exact office_hours policy version this schedule resolves against. The importer never guesses."
+        },
+        "on_windows": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["days", "start_local", "end_local"],
+            "properties": {
+              "days": { "$ref": "#/$defs/isoWeekdays" },
+              "start_local": { "$ref": "#/$defs/localTime" },
+              "end_local": { "$ref": "#/$defs/localTime" }
+            }
+          }
+        },
+        "vacancy_grace_seconds": { "type": "integer", "minimum": 0, "maximum": 3600, "default": 300 },
+        "allow_manual_override": { "type": "boolean", "default": true }
+      }
+    },
+    "alwaysOnRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["always_on_exception"],
+      "properties": {
+        "always_on_exception": { "type": "boolean" }
+      }
+    },
+    "occupancyRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "type": "string", "enum": ["manual", "scheduled"] },
+        "auto_allocate": { "type": "boolean", "default": true }
+      }
+    }
   }
 }
