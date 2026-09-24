@@ -1,0 +1,29 @@
+# F1 contract artifacts are committed. Exclude everything they must never carry.
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Working environment files (names only — never commit values).
+.env
+.env.*
+
+# Local databases (each backend owns its own file at runtime; never commit).
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+
+# Python virtual environments and caches.
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Local data drops and private datasets.
+/data/
+
+# OS artefacts.
+.DS_Store
+Thumbs.db

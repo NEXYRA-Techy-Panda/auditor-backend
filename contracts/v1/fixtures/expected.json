@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0.0",
+  "fixture": "reference",
+  "note": "Evaluation material only. Never an auditor input and never part of a telemetry export. Arithmetic is independent of application code.",
+  "totals_kwh": {
+    "light-a": 0.02,
+    "fridge-b": 0.01,
+    "office": 0.03
+  },
+  "final_cumulative_kwh": {
+    "light-a": 0.02,
+    "fridge-b": 0.01
+  },
+  "reaggregation_120s_kwh": {
+    "office": 0.03
+  },
+  "tariff": {
+    "inr_per_kwh": 10.0,
+    "office_cost_inr": 0.3
+  },
+  "findings": [
+    {
+      "finding_id": "f1-vacant-light-a-i2",
+      "finding_type": "vacant_but_on",
+      "room_id": "room-a",
+      "device_id": "light-a",
+      "window_start_utc": "2026-09-21T03:31:00Z",
+      "window_end_utc": "2026-09-21T03:32:00Z",
+      "observed": { "value": 0.01, "unit": "kWh" },
+      "expected": { "value": 0.0, "unit": "kWh" },
+      "method": "rule",
+      "suggested_action": "Switch off the Room A light when the room is vacant (fixture uses a zero-second grace period).",
+      "avoidable_energy_kwh": 0.01,
+      "assumptions": "Zero-second grace is fixture-only; real deployments use the configured vacancy grace period.",
+      "resolution_limit": "One-minute intervals; sub-minute occupancy or switching events are not visible."
+    }
+  ],
+  "explicit_non_findings": [
+    {
+      "device_id": "fridge-b",
+      "reason": "Always-on exception: vacant operation is by design, so no vacant-but-on finding is raised."
+    }
+  ],
+  "arithmetic": {
+    "light_per_minute_kwh": "600 W * 60 s / 3600000 = 0.01",
+    "fridge_per_minute_kwh": "300 W * 60 s / 3600000 = 0.005",
+    "office_total_kwh": "2 * 0.01 + 2 * 0.005 = 0.03",
+    "office_cost_inr": "0.03 kWh * Rs 10/kWh = Rs 0.30"
+  }
+}

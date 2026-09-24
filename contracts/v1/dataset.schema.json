@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/nexyra/contracts/v1/dataset.schema.json",
+  "title": "NEXYRA simulation dataset export (contract v1.0.0)",
+  "description": "Canonical JSON export envelope. Interval objects forbid unknown fields so fault labels cannot be smuggled into analysis inputs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "source", "synthetic", "building", "run", "export", "rooms", "devices", "policies", "room_intervals", "device_intervals"],
+  "properties": {
+    "schema_version": { "const": "1.0.0" },
+    "source": { "const": "simulation" },
+    "synthetic": { "type": "boolean" },
+    "synthetic_label": { "type": "string" },
+    "created_note": { "type": "string" },
+    "building": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["building_id", "name", "timezone"],
+      "properties": {
+        "building_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "name": { "type": "string", "minLength": 1 },
+        "timezone": { "type": "string", "const": "Asia/Kolkata" }
+      }
+    },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["run_id", "scenario_id", "run_start_utc"],
+      "properties": {
+        "run_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "scenario_id": { "type": "string", "enum": ["original", "improved"] },
+        "comparison_id": { "type": ["string", "null"] },
+        "run_start_utc": { "$ref": "#/$defs/utc" }
+      }
+    },
+    "export": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["export_id", "export_start_utc", "export_end_utc", "interval_seconds"],
+      "properties": {
+        "export_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "export_start_utc": { "$ref": "#/$defs/utc" },
+        "export_end_utc": { "$ref": "#/$defs/utc" },
+        "interval_seconds": { "type": "integer", "enum": [60, 300, 600, 900, 1800, 3600] },
+        "created_utc": { "$ref": "#/$defs/utc" }
+      }
+    },
+    "rooms": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["room_id", "name", "room_type", "capacity"],
+        "properties": {
+          "room_id": { "$ref": "#/$defs/id" },
+          "name": { "type": "string", "minLength": 1 },
+          "room_type": { "type": "string", "minLength": 1 },
+          "capacity": { "type": "integer", "minimum": 0, "maximum": 500 },
+          "floor_area_m2": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "devices": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["device_id", "name", "room_id", "device_type", "quantity", "nominal_power_w", "power_factor", "always_on", "control"],
+        "properties": {
+          "device_id": { "$ref": "#/$defs/id" },
+          "name": { "type": "string", "minLength": 1 },
+          "room_id": { "$ref": "#/$defs/id" },
+          "device_type": { "type": "string", "enum": ["lighting", "ac", "fan", "refrigerator", "microwave", "projector", "computer", "workstation_group"] },
+          "quantity": { "type": "integer", "minimum": 1, "maximum": 1000 },
+          "nominal_power_w": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "standby_power_w": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "power_factor": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
+          "always_on": { "type": "boolean" },
+          "control": { "type": "string", "enum": ["manual", "scheduled", "always_on"] },
+          "controls": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "policies": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["policy_id", "version", "applies_to", "kind", "effective_from_utc", "rules"],
+        "properties": {
+          "policy_id": { "$ref": "#/$defs/id" },
+          "version": { "type": "integer", "minimum": 1 },
+          "applies_to": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "enum": ["office_hours", "lighting_schedule", "device_schedule", "always_on", "occupancy"] },
+          "effective_from_utc": { "$ref": "#/$defs/utc" },
+          "rules": { "type": "object" }
+        }
+      }
+    },
+    "room_intervals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "room_id", "interval_start_utc", "interval_end_utc", "interval_seconds", "occupancy_avg", "occupancy_max", "occupied_fraction", "avg_temp_c", "avg_rh_pct", "partial"],
+        "properties": {
+          "run_id": { "type": "string", "minLength": 1 },
+          "room_id": { "$ref": "#/$defs/id" },
+          "interval_start_utc": { "$ref": "#/$defs/utc" },
+          "interval_end_utc": { "$ref": "#/$defs/utc" },
+          "interval_seconds": { "type": "integer", "minimum": 1 },
+          "occupancy_avg": { "type": "number", "minimum": 0, "maximum": 1000 },
+          "occupancy_max": { "type": "integer", "minimum": 0, "maximum": 1000 },
+          "occupied_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+          "avg_temp_c": { "type": "number", "minimum": -30, "maximum": 60 },
+          "avg_rh_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+          "partial": { "type": "boolean" }
+        }
+      }
+    },
+    "device_intervals": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["run_id", "room_id", "device_id", "interval_start_utc", "interval_end_utc", "interval_seconds", "avg_power_w", "max_power_w", "energy_kwh", "cumulative_kwh", "power_factor", "on_fraction", "override_seconds", "vacant_on_seconds", "offschedule_on_seconds", "policy_ref", "partial"],
+        "properties": {
+          "run_id": { "type": "string", "minLength": 1 },
+          "room_id": { "$ref": "#/$defs/id" },
+          "device_id": { "$ref": "#/$defs/id" },
+          "interval_start_utc": { "$ref": "#/$defs/utc" },
+          "interval_end_utc": { "$ref": "#/$defs/utc" },
+          "interval_seconds": { "type": "integer", "minimum": 1 },
+          "avg_power_w": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "max_power_w": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "energy_kwh": { "type": "number", "minimum": 0, "maximum": 100000 },
+          "cumulative_kwh": { "type": "number", "minimum": 0, "maximum": 100000000 },
+          "avg_voltage_v": { "type": "number", "minimum": 0, "maximum": 500 },
+          "avg_current_a": { "type": "number", "minimum": 0, "maximum": 500 },
+          "power_factor": { "type": "number", "minimum": 0.1, "maximum": 1.0 },
+          "on_fraction": { "type": "number", "minimum": 0, "maximum": 1 },
+          "override_seconds": { "type": "number", "minimum": 0 },
+          "vacant_on_seconds": { "type": "number", "minimum": 0 },
+          "offschedule_on_seconds": { "type": "number", "minimum": 0 },
+          "policy_ref": { "type": "string", "pattern": "^[A-Za-z0-9_-]+:[0-9]+$" },
+          "partial": { "type": "boolean" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "utc": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$" },
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9_-]+$" }
+  }
+}

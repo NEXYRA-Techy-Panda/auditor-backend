@@ -1,0 +1,41 @@
+{
+    "contract_version":  "1.0.0",
+    "canonical_repository":  "simulation-backend",
+    "canonical_path":  "contracts/v1",
+    "generated_utc":  "2026-09-24T12:35:00Z",
+    "note":  "Receiving these files does not prove application compatibility. See CONTRACT.md change policy.",
+    "files":  [
+                  {
+                      "path":  "contracts/v1/CONTRACT.md",
+                      "sha256":  "a10dc136658edf5a330abebcc9fe8913814718824b7e15d50ef9b84aa3578d19"
+                  },
+                  {
+                      "path":  "contracts/v1/dataset.schema.json",
+                      "sha256":  "dd4feeddeee6049667941fe2596bca8c3a42c1a7df8a72f3748d2d2c5cdd35b0"
+                  },
+                  {
+                      "path":  "contracts/v1/CSV_COLUMNS.md",
+                      "sha256":  "4e217d7b2cd2f70a8dbfc8eeb13e80d7e0264c694be0c21a1df6cd064f6e15c1"
+                  },
+                  {
+                      "path":  "contracts/v1/API.md",
+                      "sha256":  "49e54a7d3e7ef998446fb6f7387af404ba4c831ff620133887a9629d63d95104"
+                  },
+                  {
+                      "path":  "contracts/v1/fixtures/reference.json",
+                      "sha256":  "14dec040d2be10372531d7baad4f73125d656aa14c69fba8c6651d892b80504c"
+                  },
+                  {
+                      "path":  "contracts/v1/fixtures/reference.csv",
+                      "sha256":  "f7f6883abd1993fbe142a738a567db71b5d8d78e8bc811e40e6a0f3942998202"
+                  },
+                  {
+                      "path":  "contracts/v1/fixtures/expected.json",
+                      "sha256":  "522fb8dc2cbe55b27283dba2a661f5c3bbf3824118e6c195d55623b895e8289a"
+                  },
+                  {
+                      "path":  "scripts/verify-contract.mjs",
+                      "sha256":  "c6f10494a10b5529781ef8c3a29e0768823778ad213a4b4d76e28c632e15dafc"
+                  }
+              ]
+}

@@ -1,0 +1,162 @@
+# HANDOFF — auditor-backend
+
+## 0. Continuity and current layer (F0.1, 2026-09-24)
+
+- Current layer: **F1** (shared contract v1.0.0) — status
+  **blocked** (contract authored + verified; commit/push await git identity),
+  review **pending**. Contract: **1.0.0 defined** (canonical
+  `simulation-backend/contracts/v1/`, mirrored to siblings).
+- Continuity files: [ACTIVE_TASK.md](ACTIVE_TASK.md) and [PROGRESS_LOG.md](PROGRESS_LOG.md).
+- Continuation procedure for a replacement agent: read `AGENTS.md` (absent at
+  F0.1 — record if still absent), then `PROJECT_CONTEXT.md`, `WORKSPACE_MAP.md`,
+  this `HANDOFF.md`, `ACTIVE_TASK.md`, and recent `PROGRESS_LOG.md` entries;
+  inspect `git branch/status/log` and source; reconcile docs with code; resume
+  the ACTIVE_TASK next action. Do not restart completed work. See
+  [AGENT_START_PROMPT.md](AGENT_START_PROMPT.md) for the full protocol.
+- Verified vs planned: **verified** = §2 state below (empty repo on `main`,
+  no commits, docs-only untracked files, origins/ports/tooling as measured).
+  Everything marked "Not implemented" or "planned" is **not** built. This repo
+  has NOT completed application setup — F2 has not run.
+- Layer clarifications: **F1 is contract work and does not require Python.**
+  Python installation/runtime verification belongs to **F2 for
+  energy-ml-service**. Auditor Node work (this repo) can proceed independently;
+  Python is required only for the relevant auditor↔Python integration checks
+  (F4). Runtime recommendations from F0 (Node `>=20.9`, Python `3.12`, npm,
+  venv+pip) remain **provisional until checked against chosen dependency
+  versions and official compatibility documentation during F2**.
+- F0 review status: accepted by architecture lead based on supplied evidence;
+  local files were not directly inspected by the lead.
+- F1 addendum (2026-09-24, completed, review pending): contract v1.0.0 defined;
+  this repo holds a byte-identical mirror under `contracts/v1/` (canonical:
+  `simulation-backend/contracts/v1/`; see `contracts/v1/manifest.json`).
+  `node scripts/verify-contract.mjs` → 49 passed, 0 failed in all five repos
+  (semantic checks only; formal schema validation is F2). Links:
+  [contract](contracts/v1/CONTRACT.md), [schema](contracts/v1/dataset.schema.json),
+  [CSV](contracts/v1/CSV_COLUMNS.md), [API](contracts/v1/API.md),
+  [evidence](F1_EVIDENCE.md), [active task](ACTIVE_TASK.md),
+  [progress](PROGRESS_LOG.md).
+- Dated corrections (history preserved in PROGRESS_LOG): Python 3.13.15
+  verified — auditor Node work proceeds independently; Python needed only for
+  F4 integration checks; F0.1 "read-only sibling" wording corrected — F0.1
+  explicitly covered all five repositories; runtime recommendations stay
+  provisional until F2; hosting plan — frontends on Vercel, Node backends +
+  Python service on Mohan's VPS (no deployment in F1); from F1 onward
+  completed layer work is committed and pushed (F0/F0.1 no-push was historical
+  only).
+
+## 1. Purpose and owner
+
+- **Purpose**: Auditor API. Node.js + Express + TypeScript + SQLite service for
+  CSV/JSON upload validation, preview, deduplication, persistence, office/room/
+  device + weekday/schedule analytics, tariff handling (flat ₹/kWh), waste/
+  anomaly findings, forecasts (via Python), original/improved comparison, and
+  monthly-report data. Calls the private Python service server-side; serves the
+  auditor frontend. Owns its own SQLite DB; never opens the simulator DB.
+- **Owner (foundation + long-term)**: Mohan.
+
+## 2. Current verified state (F0, 2026-09-24)
+
+- Local path: `K:\NEXYRA\auditor-backend` (portable: `../auditor-backend`).
+- Remote: `https://github.com/NEXYRA-Techy-Panda/auditor-backend.git`
+  (verified; fetch OK).
+- Branch: `main`. HEAD: **No commits yet**.
+- Working tree before F0 docs: clean (only `.git/`).
+- After F0 docs (uncommitted): new untracked `docs/PROJECT_CONTEXT.md`,
+  `docs/WORKSPACE_MAP.md`, `docs/HANDOFF.md` (this file),
+  `docs/AGENT_START_PROMPT.md`, `README.md`. Not committed/pushed.
+- Parent is not a Git repository. No `AGENTS.md` found at F0.
+- Tooling: Git `2.55.0.windows.5`, Node `v24.21.0`, npm `11.19.0`. Proposed
+  port `4001` free at F0.
+- Application state: **Not implemented** — no `package.json`, no source, no DB.
+
+## 3. Completed layers and evidence
+
+- **F0 (in review)**: cloned empty repo; verified origin/branch/HEAD/status;
+  fetched; recorded tooling/ports; created docs. Evidence in F0 report.
+- **F1–F6**: Not implemented.
+
+## 4. Pre-existing implementation discovered during inspection
+
+None. Empty repository; nothing to preserve.
+
+## 5. Planned next layers
+
+- **F1**: shared contract — import schema, dedup keys, analytics shapes,
+  tariff/forecast/comparison semantics, auditor↔Python request/response shapes,
+  UTC/Asia-Kolkata and kWh reconciliation rules.
+- **F2**: Express + TypeScript scaffold via npm; health endpoint; Node pin.
+- **F3**: private SQLite file (e.g. `./data/*.sqlite` — finalise in F3),
+  migrations + seeds for imports/readings/findings.
+- **F4**: CORS for `http://localhost:3001`; `ML_SERVICE_URL` (proposed,
+  e.g. `http://localhost:8000`) health path to Python; upload → persist →
+  analyse flow.
+- **F5**: reference-data integration (rooms/devices/tariff defaults).
+- **F6**: verified end-to-end (frontend upload → backend → Python → results →
+  report).
+
+## 6. Prerequisites
+
+- Git, Node `>=20.9` + npm. SQLite driver (F2). Python service (sibling
+  `../energy-ml-service`, port `8000`) required from F4 onward — Python
+  `3.12` must be installed before then (missing at F0).
+
+## 7. Actual run/check commands, if implemented
+
+No app commands exist. F0 checks:
+
+```powershell
+git -C auditor-backend rev-parse --show-toplevel
+git -C auditor-backend remote -v
+git -C auditor-backend branch --show-current; git -C auditor-backend status -sb
+git -C auditor-backend rev-parse HEAD   # unknown revision — no commits
+git -C auditor-backend log --oneline -5 # no commits yet
+git -C auditor-backend fetch --all
+git -C auditor-backend ls-remote --heads origin  # empty
+node --version; npm --version; git --version
+netstat -ano | Select-String ':3000 |:3001 |:4000 |:4001 |:8000 '  # no matches
+```
+
+No migration/test commands — do not invent.
+
+## 8. Configuration names without secret values
+
+Proposed only (no `.env` at F0):
+
+- `PORT` → `4001`; `FRONTEND_ORIGIN` → `http://localhost:3001`
+- `ML_SERVICE_URL` / `ENERGY_ML_SERVICE_URL` → `http://localhost:8000`
+- `DATABASE_URL` / `SQLITE_PATH` → private file in this repo (F3 finalises).
+- No secrets or credentials.
+
+## 9. Contracts and external dependencies
+
+- **F1 contract**: Not implemented.
+- **Planned**: serves auditor-frontend (HTTP); calls energy-ml-service (HTTP,
+  server-side only). No simulator-DB access; no browser-DB access.
+- **npm deps**: none yet.
+
+## 10. Database/migration status
+
+Not implemented. Separate SQLite DB owned privately (F3). No schema,
+migrations, seeds, or files at F0.
+
+## 11. Known issues and blockers
+
+1. Empty remote — greenfield.
+2. Python `3.12` not installed — blocks F4 Python wiring until resolved.
+3. Node pin + SQLite driver/file location undecided until F2/F3.
+4. F0 docs uncommitted — pending review.
+
+## 12. Deferred features
+
+Per shared context: live mode, advanced tariffs, sensor/BMS, pricing, doodle
+occupants. No live simulator connection in MVP1 (file upload only).
+
+## 13. Last verification date and relevant existing commit references
+
+- Date: 2026-09-24. No commits. F0 docs untracked, pending review.
+
+## 14. Instructions to update this document after every completed layer
+
+After each layer, update date, branch/HEAD, §§2–3/7–11 with actual files,
+commands and results; preserve history; keep §§1/12/14 unless scope formally
+changes. Return updated sections as evidence.
