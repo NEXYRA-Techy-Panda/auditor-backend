@@ -2,7 +2,7 @@
   "name": "auditor-backend",
   "version": "0.1.0",
   "private": true,
-  "description": "NEXYRA auditor backend (F2 scaffold: health route only).",
+  "description": "NEXYRA auditor backend with validated CSV and JSON imports.",
   "type": "module",
   "engines": {
     "node": ">=24.0.0"
@@ -16,19 +16,24 @@
     "test": "tsx --test test/*.test.ts",
     "verify:contract": "node scripts/verify-contract.mjs",
     "validate:schema": "node scripts/validate-schema.mjs",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "check:import-http": "node scripts/check-import-http.mjs",
+    "check:import-scale": "node scripts/check-import-scale.mjs"
   },
   "dependencies": {
     "ajv": "8.20.0",
     "better-sqlite3": "13.0.3",
     "cors": "2.8.6",
-    "express": "5.2.1"
+    "csv-parse": "7.0.2",
+    "express": "5.2.1",
+    "multer": "2.4.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
     "@types/better-sqlite3": "7.6.13",
     "@types/cors": "2.8.19",
     "@types/express": "5.0.6",
+    "@types/multer": "2.2.0",
     "@types/node": "24.13.6",
     "eslint": "10.11.0",
     "globals": "17.12.0",

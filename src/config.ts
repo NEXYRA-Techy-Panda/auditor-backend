@@ -13,6 +13,7 @@ export interface Config {
   mlServiceUrl: string;
   databasePath: string;
   databaseBusyTimeoutMs: number;
+  uploadMaxBytes: number;
 }
 
 export class ConfigError extends Error {}
@@ -61,5 +62,6 @@ export function loadConfig(env: Env = process.env): Config {
     mlServiceUrl: parseOrigin('ML_SERVICE_URL', env.ML_SERVICE_URL || 'http://localhost:8000'),
     databasePath: env.DATABASE_PATH || './data/auditor.sqlite',
     databaseBusyTimeoutMs: intInRange(env, 'DATABASE_BUSY_TIMEOUT_MS', 5000, 0, 60000),
+    uploadMaxBytes: intInRange(env, 'UPLOAD_MAX_BYTES', 512 * 1024 * 1024, 1, 1024 * 1024 * 1024),
   };
 }

@@ -17,6 +17,7 @@ export interface ErrorBody {
   message: string;
   field?: string;
   row?: number;
+  details?: unknown;
 }
 
 /** Contract success envelope: { data, meta: { request_id } }. */

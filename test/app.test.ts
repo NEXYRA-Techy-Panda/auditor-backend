@@ -77,6 +77,7 @@ describe('config', () => {
       port: 4001, host: '127.0.0.1', frontendOrigin: 'http://localhost:3001',
       jsonBodyLimit: '100kb', shutdownTimeoutMs: 10000, mlServiceUrl: 'http://localhost:8000',
       databasePath: './data/auditor.sqlite', databaseBusyTimeoutMs: 5000,
+      uploadMaxBytes: 536870912,
     });
   });
 

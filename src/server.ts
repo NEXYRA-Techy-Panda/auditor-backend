@@ -19,7 +19,7 @@ try {
 
 const { host, port, shutdownTimeoutMs } = config;
 const database = new AuditorDatabase(config.databasePath, config.databaseBusyTimeoutMs);
-const server = createApp(config).listen(port, host, () => {
+const server = createApp(config, database).listen(port, host, () => {
   console.log(`auditor-backend listening on http://${host}:${port} (health: /api/v1/health, pid ${process.pid})`);
 });
 server.on('error', (err) => {

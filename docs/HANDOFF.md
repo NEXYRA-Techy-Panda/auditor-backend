@@ -1,5 +1,47 @@
 # HANDOFF — auditor-backend
 
+## P006 F5-A addendum (2026-09-24; implemented, review pending)
+
+- Uses existing P003 `AuditorDatabase.storeDataset()` and the version 1.0.1
+  contract without editing `contracts/v1/`. Adds `POST /api/v1/imports`,
+  `GET /api/v1/imports`, `GET /api/v1/imports/:id/summary` and
+  `PUT /api/v1/imports/:id/tariff`; health still reports
+  `ml_reachable: not_checked`.
+- First valid import: HTTP 201, `status: accepted`, `already_imported: false`.
+  Equivalent export identity/fingerprint repeat: HTTP 200,
+  `status: already_imported`, `already_imported: true`, same dataset ID.
+  Conflicting semantic content for an existing export identity: HTTP 409
+  `CONFLICT`. Invalid files use HTTP 400/422 with `details.errors` and first
+  `field`/`row`; upload bounds return HTTP 413 `REQUEST_TOO_LARGE`.
+- Upload bounds: default 512 MiB (`UPLOAD_MAX_BYTES`, configurable up to
+  1 GiB), one file and no form fields, 900,000 CSV data rows, 1,100,000 JSON
+  device intervals, 250,000 room intervals and 8 MiB metadata. CSV parsing is
+  streamed with `csv-parse`; Multer writes to generated OS temp directories;
+  temporary upload directories are cleaned on all handled success/failure
+  paths. Uploaded names are never filesystem paths.
+- Fingerprint is SHA-256 over streamed deterministic serialization of
+  normalized validated data. It ignores top-level `source`, all run IDs,
+  `export_id`, `export.created_utc`, `created_note`, transport format, byte
+  formatting, object-key order and array order. It includes schema version,
+  scenario/comparison, run start, export period/resolution, timezone, synthetic
+  provenance, inventory, policies and deduplicated readings. User tariff and
+  optional file hash are not fingerprint input.
+- Verification: contract 75/75; formal schema 24/24; typecheck/lint/build all
+  pass; test 10/10. Actual server on 4001 with temporary database verified JSON
+  201, equivalent JSON and CSV repeats 200, listing, 0.03 kWh summary, tariff
+  update to ₹10/kWh and ₹0.30 cost. Month-size CSV: 133,304,273 bytes,
+  803,520 device records + 223,200 room intervals, imported in 66 s;
+  summary was 93.74400026784001 kWh. One mid-run process working-set sample was
+  838,115,328 bytes (~799 MiB); this is a sample, not a peak guarantee.
+- Commands: `npm ci`; `npm run db:migrate`; `npm run dev`; full verification
+  commands listed in `P006_F5_A_EVIDENCE.md`; live reference path
+  `npm run check:import-http`; month-size path `npm run check:import-scale`
+  (build first; requires free port 4001).
+- No Python/model/anomaly/forecast/report/chart/frontend changes. Current next
+  action after commit/push: provide this handoff to the next assigned task;
+  import is the only new analysis-facing capability.
+- Publication hash: pending final commit/push verification.
+
 ## P003 F3-A addendum (2026-09-24; implementation complete, review pending)
 
 - Base: F2-B `7ce573408d0bec51b7c08900052431df9cd8ed66`; task-owned changes

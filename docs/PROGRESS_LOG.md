@@ -237,3 +237,42 @@ correction entry; do not rewrite history.
   `571078274730811392ddbd53990d6eb17b0cde09` was pushed without force;
   `origin/main` verified to the same hash. Working tree clean after push.
 - Task complete; review pending. Stop after P003.
+
+---
+
+# 2026-09-24 — P006 F5-A checkpoint
+
+- Assignment: Agent C — Codex; auditor import/reference-data routes. Baseline
+  `aa53d0c190ec9295354d34cb432a810144c79345`; clean `main` after fetch.
+  Writes remain limited to auditor-backend; contract bundle unchanged.
+- Added pinned `multer@2.4.0`, `csv-parse@7.0.2`, and
+  `@types/multer@2.2.0`. Implemented private temp-file multipart handling,
+  streamed standalone CSV reconstruction, canonical JSON reads, schema and
+  semantic validation, deduplication/fingerprinting, routes, DB summary/tariff
+  queries, integration tests, and runnable HTTP/scale evidence scripts.
+- Full checks: contract 75/75; formal schema 24/24; typecheck/lint/build pass;
+  tests 10/10. First/duplicate/CSV-equivalent/tariff paths demonstrated against
+  the actual server on port 4001 and a disposable SQLite file.
+- Scale: generated 31-day one-minute export, 133,304,273 bytes; 803,520 device
+  intervals plus 223,200 room intervals; HTTP 201; 140.39 s; summary
+  93.74400026784001 kWh. Highest sampled server working set 850,149,376 bytes,
+  sampled mid-run and not asserted as peak. Only task-owned server was stopped;
+  port 4001 is no longer listening; temporary files/databases removed.
+- Next action: finish evidence/README/status review, commit and push without
+  force, verify remote `main` matches local HEAD and tree/process status.
+
+## 2026-09-24 — P006 F5-A final verification checkpoint
+
+- Final-code verification rerun: `verify:contract` 75/75; `validate:schema`
+  24/24; typecheck, lint and build passed; tests 10/10.
+- `check:import-http`: first multipart JSON import HTTP 201; equivalent JSON
+  and standalone CSV repeats HTTP 200 with the same dataset ID; summary
+  0.03 kWh; tariff HTTP 200 at INR 10/kWh; cost INR 0.30.
+- `check:import-scale`: generated 133,304,273-byte CSV, 803,520 device plus
+  223,200 room intervals; HTTP 201 and 93.74400026784001 kWh summary in
+  66 seconds. A mid-run server working-set sample was 838,115,328 bytes;
+  sample only, not peak guarantee. Harness RSS after completion 196,096,000.
+- Both scripts cleaned their temporary data and owned server processes. Port
+  4001 has no listener; `git diff --check` passed. All changed files are in
+  `auditor-backend`; contract and sibling repositories are unchanged.
+- Next action: commit and push without force, verify remote hash and clean tree.

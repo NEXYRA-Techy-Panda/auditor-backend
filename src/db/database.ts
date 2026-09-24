@@ -25,6 +25,14 @@ export interface ForecastInput {
   energyKwh: number; assumptions: JsonRecord; tariff?: { userId: string; ratePerKwh: number; currency: string; costAmount: number };
 }
 export interface ComparisonInput { comparisonId: string; originalDatasetId: string; improvedDatasetId: string; assumptions: JsonRecord; }
+export interface DatasetListItem {
+  dataset_id: string; run_id: string; scenario_id: string; interval_seconds: number; imported_utc: string;
+}
+export interface DatasetSummary {
+  dataset_id: string; energy_kwh: number; cost_inr: number | null; tariff_inr_per_kwh: number | null;
+  coverage: { start_utc: string; end_utc: string; device_intervals: number; room_intervals: number };
+  gaps: [];
+}
 
 const str = (row: JsonRecord, key: string): string => {
   const value = row[key];
@@ -118,6 +126,37 @@ export class AuditorDatabase {
     this.connection.prepare(`INSERT INTO user_tariff_settings(user_id, currency, rate_per_kwh) VALUES (?, ?, ?)
       ON CONFLICT(user_id) DO UPDATE SET currency=excluded.currency, rate_per_kwh=excluded.rate_per_kwh,
       updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')`).run(userId, currency, ratePerKwh);
+  }
+
+  hasDataset(datasetId: string): boolean {
+    return Boolean(this.connection.prepare('SELECT 1 FROM datasets WHERE dataset_id=?').get(datasetId));
+  }
+
+  listDatasets(): DatasetListItem[] {
+    return this.connection.prepare(`SELECT dataset_id,
+      json_extract(source_metadata_json,'$.run.run_id') AS run_id,
+      json_extract(source_metadata_json,'$.run.scenario_id') AS scenario_id,
+      source_resolution_seconds AS interval_seconds, imported_at AS imported_utc
+      FROM datasets ORDER BY imported_at DESC, dataset_id`).all() as DatasetListItem[];
+  }
+
+  getDatasetSummary(datasetId: string, userId = 'local'): DatasetSummary | undefined {
+    const dataset = this.connection.prepare(`SELECT dataset_id,
+      json_extract(source_metadata_json,'$.export.export_start_utc') AS start_utc,
+      json_extract(source_metadata_json,'$.export.export_end_utc') AS end_utc
+      FROM datasets WHERE dataset_id=?`).get(datasetId) as
+      { dataset_id: string; start_utc: string; end_utc: string } | undefined;
+    if (!dataset) return undefined;
+    const energy = (this.connection.prepare('SELECT coalesce(sum(energy_kwh),0) AS value FROM device_intervals WHERE dataset_id=?').get(datasetId) as { value: number }).value;
+    const rate = this.connection.prepare('SELECT rate_per_kwh AS value FROM user_tariff_settings WHERE user_id=?').get(userId) as { value: number } | undefined;
+    const deviceIntervals = (this.connection.prepare('SELECT count(*) AS value FROM device_intervals WHERE dataset_id=?').get(datasetId) as { value: number }).value;
+    const roomIntervals = (this.connection.prepare('SELECT count(*) AS value FROM room_intervals WHERE dataset_id=?').get(datasetId) as { value: number }).value;
+    return {
+      dataset_id: dataset.dataset_id, energy_kwh: energy,
+      cost_inr: rate ? energy * rate.value : null, tariff_inr_per_kwh: rate?.value ?? null,
+      coverage: { start_utc: dataset.start_utc, end_utc: dataset.end_utc, device_intervals: deviceIntervals, room_intervals: roomIntervals },
+      gaps: [],
+    };
   }
 
   createAnalysisJob(input: AnalysisJobInput): void {
