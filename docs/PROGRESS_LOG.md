@@ -496,3 +496,37 @@ correction entry; do not rewrite history.
   per-device `assessment_source`/`reason`, excluded bins, warnings and drift
   `other_changes` without malfunctions, efficiency loss or savings claims.
   Stop after P026 on the backend side.
+# 2026-09-25 02:07 +05:30 (IST) — P028-PREP checkpoint
+
+- Developer Mohan | Agent M-B — Codex. Isolated worktree
+  `K:\NEXYRA-P028-report-math-prep`, branch `mohan/p028-report-math-prep`,
+  base `d0fcd092fa39ca17a7efbcdaeffd4e43bd1c2eb1` (committed revision newer
+  than deployment baseline). Initial backend main worktree was clean; other
+  four sibling repositories were inspected read-only. Auditor frontend had
+  owner P027 edits, left untouched.
+- Added framework-independent `src/reporting/economics.ts`: evidence-aware
+  recommendation inputs, explicit projection economics, matched comparison
+  arithmetic with signed deltas, half-open period overlap reporting and
+  deterministic comparable payback ranking. Forecast/historical/deviation
+  evidence cannot produce savings. A simple payback requires the caller to
+  assert a supported recurring savings rate.
+- Added `test/P028_report_economics.test.ts` for required arithmetic, missing
+  values, matching, overlap, ranking, validation and determinism cases.
+- Added `docs/P028_REPORT_MATH_PREP_EVIDENCE.md`; this entry and
+  `docs/ACTIVE_TASK.md` preserve the P026 prior outcome.
+- Verification: six direct Node 24 runtime known-answer assertions passed
+  against the module (₹0.10, null vs zero tariff, ₹200 matched comparison,
+  negative signed delta, and unverified external-input mismatch). Typecheck
+  could not launch (`tsc` unavailable), lint could not launch (`eslint`
+  unavailable), and focused test runner could not resolve offline (`ENOTCACHED`);
+  no `node_modules` is present. No dependency installation or network use.
+  No packages installed, services started, databases changed, training run or
+  network request made.
+- Unresolved: execute typecheck/lint/focused test when existing dependencies
+  are available; later route/persistence/UI integration is separate. No
+  feature branch push: committed deployment records say a push may trigger
+  deployment, and no pipeline config explicitly establishes a safe feature
+  branch rule.
+- Exact next action: inspect scoped changes, commit only task-owned files in
+  this isolated worktree, verify commit and original worktree remain clean.
+  Review pending.

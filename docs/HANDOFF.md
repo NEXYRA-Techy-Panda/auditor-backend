@@ -454,3 +454,24 @@ occupants. No live simulator connection in MVP1 (file upload only).
 After each layer, update date, branch/HEAD, §§2–3/7–11 with actual files,
 commands and results; preserve history; keep §§1/12/14 unless scope formally
 changes. Return updated sections as evidence.
+# P028-PREP branch-local preparation (2026-09-25)
+
+- Developer Mohan | M-B — Codex. Separate worktree
+  `K:\NEXYRA-P028-report-math-prep`, branch `mohan/p028-report-math-prep`,
+  based on `d0fcd092fa39ca17a7efbcdaeffd4e43bd1c2eb1`.
+- Source/test/evidence: `src/reporting/economics.ts`,
+  `test/P028_report_economics.test.ts`,
+  `docs/P028_REPORT_MATH_PREP_EVIDENCE.md`.
+- Prepared pure evidence, projection, ROI/payback, overlap and comparison
+  calculations. No route, database, contract, startup, dependency or frontend
+  changes.
+- Six direct Node 24 known-answer checks passed. Typecheck and lint could not
+  start (`tsc`/`eslint` absent); focused test runner could not resolve offline
+  (`ENOTCACHED`). Checkout has no `node_modules`. No installation, network,
+  service or database activity.
+- Feature branch remains local because the project records warn a push may
+  trigger deployment and do not explicitly establish a non-deploying feature
+  branch pipeline. The module is not merged, exposed through the API or
+  deployed. Review pending.
+- Next action: run typecheck/lint/focused test when dependencies are available;
+  then backend/API and frontend integration in separately scoped work.
