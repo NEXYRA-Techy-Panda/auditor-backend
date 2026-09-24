@@ -28,7 +28,8 @@ Status: blocked for the required compiler/linter/focused-test/build gates.
 Twenty-seven direct Node 24 runtime assertions against the module passed after
 targeted safeguards were added. Locked `npm ci` failed compiling
 `better-sqlite3`; no local typecheck, lint or `tsx` runner is available. Review
-pending.
+pending. R1 fix/handoff commit: `538f87cdc18bce4d59f510a9bd417309cfe65ce5`
+(local on `mohan/p028-report-math-prep`).
 
 ## Checkpoint — 2026-09-25 02:07 +05:30
 
@@ -70,6 +71,6 @@ pending.
   committed. No runtime service or database was started or changed.
 - Exact next action: Mohan provisions the Windows “Desktop development with
   C++” workload, then runs `npm ci`, `npm run typecheck`, `npm run lint`,
-  `node_modules/.bin/tsx --test test/P028_report_economics.test.ts`, and
+  `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts`, and
   `npm run build` in this worktree. Fix compiler/test findings before review.
   No push, merge, deployment, or API/UI implementation.

@@ -573,6 +573,9 @@ correction entry; do not rewrite history.
 - No routes/UI/contracts/database/build output/dependencies committed. No
   service, DB, model training or task-owned process remains. Commits remain
   local; no push, merge, deployment or worktree deletion.
+- R1 implementation/test/evidence/continuity commit:
+  `538f87cdc18bce4d59f510a9bd417309cfe65ce5` on
+  `mohan/p028-report-math-prep`; clean before final continuity-only commit.
 - Status: blocked on workstation Visual Studio “Desktop development with C++”
   prerequisite to `npm ci`/native SQLite build. Exact next action: provision
   that workload, then rerun `npm ci`, `npm run typecheck`, `npm run lint`,

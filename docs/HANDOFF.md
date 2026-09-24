@@ -482,7 +482,8 @@ changes. Return updated sections as evidence.
 
 - Worktree/branch unchanged: `K:\NEXYRA-P028-report-math-prep`,
   `mohan/p028-report-math-prep`. Targeted math/test/evidence changes are
-  uncommitted pending this local handoff commit. No push, merge or deployment.
+  committed locally in `538f87cdc18bce4d59f510a9bd417309cfe65ce5`; no push,
+  merge or deployment.
 - `npm ci` exited 1 compiling locked `better-sqlite3@13.0.3`: node-gyp found
   Python 3.13.15 but no Visual Studio C++ workload. No retry or `--ignore-scripts`
   bypass. Consequently typecheck, lint, focused tsx tests and build exited 1
