@@ -67,10 +67,12 @@ export interface DatasetListItem {
   dataset_id: string; run_id: string; scenario_id: string; interval_seconds: number; imported_utc: string;
 }
 export interface DatasetSummary {
-  dataset_id: string; energy_kwh: number; cost_inr: number | null; tariff_inr_per_kwh: number | null;
+  dataset_id: string; energy_kwh: number | null; cost_inr: number | null; tariff_inr_per_kwh: number | null;
   synthetic: boolean; synthetic_label: string | null;
   coverage: { start_utc: string; end_utc: string; device_intervals: number; room_intervals: number };
   gaps: [];
+  gap_assessment: { status: 'not_performed'; message: string };
+  source_metadata: JsonRecord;
 }
 
 const str = (row: JsonRecord, key: string): string => {
@@ -190,22 +192,24 @@ export class AuditorDatabase {
   }
 
   getDatasetSummary(datasetId: string, userId = 'local'): DatasetSummary | undefined {
-    const dataset = this.connection.prepare(`SELECT dataset_id,synthetic,synthetic_label,
+    const dataset = this.connection.prepare(`SELECT dataset_id,synthetic,synthetic_label,source_metadata_json,
       json_extract(source_metadata_json,'$.export.export_start_utc') AS start_utc,
       json_extract(source_metadata_json,'$.export.export_end_utc') AS end_utc
       FROM datasets WHERE dataset_id=?`).get(datasetId) as
-      { dataset_id: string; synthetic: number; synthetic_label: string | null; start_utc: string; end_utc: string } | undefined;
+      { dataset_id: string; synthetic: number; synthetic_label: string | null; source_metadata_json: string; start_utc: string; end_utc: string } | undefined;
     if (!dataset) return undefined;
     const energy = (this.connection.prepare('SELECT coalesce(sum(energy_kwh),0) AS value FROM device_intervals WHERE dataset_id=?').get(datasetId) as { value: number }).value;
     const rate = this.connection.prepare('SELECT rate_per_kwh AS value FROM user_tariff_settings WHERE user_id=?').get(userId) as { value: number } | undefined;
     const deviceIntervals = (this.connection.prepare('SELECT count(*) AS value FROM device_intervals WHERE dataset_id=?').get(datasetId) as { value: number }).value;
     const roomIntervals = (this.connection.prepare('SELECT count(*) AS value FROM room_intervals WHERE dataset_id=?').get(datasetId) as { value: number }).value;
     return {
-      dataset_id: dataset.dataset_id, energy_kwh: energy,
-      cost_inr: rate ? energy * rate.value : null, tariff_inr_per_kwh: rate?.value ?? null,
+      dataset_id: dataset.dataset_id, energy_kwh: deviceIntervals ? energy : null,
+      cost_inr: deviceIntervals && rate !== undefined ? energy * rate.value : null, tariff_inr_per_kwh: rate?.value ?? null,
       synthetic: dataset.synthetic === 1, synthetic_label: dataset.synthetic_label,
       coverage: { start_utc: dataset.start_utc, end_utc: dataset.end_utc, device_intervals: deviceIntervals, room_intervals: roomIntervals },
       gaps: [],
+      gap_assessment: { status: 'not_performed', message: 'Per-gap coverage assessment is not performed by the summary endpoint; gaps is retained as an empty compatibility field.' },
+      source_metadata: JSON.parse(dataset.source_metadata_json) as JsonRecord,
     };
   }
 

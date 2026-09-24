@@ -10,6 +10,7 @@ import { analysisRouter } from './routes/analysis.js';
 import type { AnalysisJobManager } from './analysis/jobs.js';
 import type { PythonAnalysisClient } from './analysis/client.js';
 import { forecastsRouter } from './routes/forecasts.js';
+import { historicalRouter } from './routes/historical.js';
 
 export function createApp(config: Config, database?: AuditorDatabase, services: { python?: PythonAnalysisClient; jobs?: AnalysisJobManager } = {}): Express {
   const app = express();
@@ -19,7 +20,10 @@ export function createApp(config: Config, database?: AuditorDatabase, services: 
   app.use(express.json({ limit: config.jsonBodyLimit }));
 
   app.use('/api/v1', healthRouter(services.python));
-  if (database) app.use('/api/v1', importsRouter(database, config.uploadMaxBytes));
+  if (database) {
+    app.use('/api/v1', importsRouter(database, config.uploadMaxBytes));
+    app.use('/api/v1', historicalRouter(database));
+  }
   if (database && services.jobs) {
     app.use('/api/v1', analysisRouter(services.jobs, database));
     app.use('/api/v1', forecastsRouter(services.jobs, database));

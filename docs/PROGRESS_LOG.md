@@ -364,3 +364,51 @@ correction entry; do not rewrite history.
   Python sibling had separate concurrent work, which was left untouched.
 - Review remains pending. Exact next frontend action: implement forecast
   submit/poll/result display in `auditor-frontend`; stop after P020.
+
+## 2026-09-24 — P023 A5-backend started (Agent C — Codex)
+
+- Preserved P020 completed/published outcome above. Starting HEAD is
+  `df1ecbd08369d71f88de9cf5f26e6d8fd44e8ebd`, clean on `main`; no applicable
+  parent or repository `AGENTS.md` found.
+- Current route audit: imports and summary exist, but documented room/device/
+  timeseries/weekday routes are absent. Summary returns hard-coded `gaps: []`
+  without assessment status. Shared contract specifies room/device/timeseries
+  route names and 2,000 maximum page size; analytics routes can be additive.
+- No siblings, contract files, or parent files will be modified. P020 forecast
+  behavior remains read-only for this work.
+- Next: design bounded paginated persisted-reading analytics, exact compatible
+  bucket and coverage semantics, weekday route; then tests and live HTTP check.
+
+## 2026-09-24 — P023 A5-backend implementation completed (Agent C — Codex)
+
+- Added stable paginated room/device analytics, exact-bucket office/room/device
+  timeseries, and Monday–Sunday local calendar analytics. Added current-tariff
+  costs, distinct expected/covered duration, synthetic provenance, explicit
+  missing/partial/complete states, and source-grid/bucket alignment validation.
+- Summary preserves `gaps: []` for compatibility but now reports
+  `gap_assessment.status=not_performed` and source metadata. No full dataset gap
+  list is constructed. Shared contract unchanged.
+- Actual HTTP test with scratch SQLite verifies reference office/light/fridge
+  totals 0.03/0.02/0.01 kWh; same-time different-device sums; ?10 cost 0.30;
+  zero vs unset; gaps/null; stable page-one/page-two; quantity independence;
+  IST local midnight; partial first day; two Mondays vs one Tuesday complete-day
+  means; unsupported alignment and crossing interval rejection. Synthetic
+  source provenance observed in summary response.
+- `npm run check:import-http`: 201 initial, equivalent JSON/CSV 200, 0.03 kWh,
+  tariff 10 -> 0.30. `npm run check:analysis-http`: pass against P010, one
+  reference finding, 0.01 kWh avoidable, 0.03 kWh imported, 0.30 cost;
+  1000/317 partitions compared. `npm run check:forecast-http`: pass against
+  P013, 672 history hours, 720 points, 10.8 kWh, cost 108 at tariff 10 and
+  honest insufficient-history failure.
+- Full checks: contract 75/75; schema 24/24; typecheck, lint, build pass;
+  tests 28/28; diff check clean. P015 caps reconfirmed from existing evidence:
+  100,000 findings, 100,000 warnings, 100,000 evidence rows per finding;
+  exceeding caps fails the job, pagination max 500 is retrieval-only.
+- Files: README, ACTIVE_TASK, AUDITOR_API_EXAMPLES, HANDOFF, PROGRESS_LOG,
+  new P023 evidence, new analytics module/router, app mount, summary provenance
+  and gap-assessment fields, new historical HTTP test. No DB migration or
+  dependency change.
+- No task-owned processes/temp directories remain; ports 4001 and 8000 are
+  clear. Python/frontend/simulator siblings and shared contract remain
+  untouched. Next: commit/push normally, verify clean tree and remote main;
+  then OpenCode consumes the published documented routes. Review pending.

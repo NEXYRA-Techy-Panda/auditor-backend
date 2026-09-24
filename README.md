@@ -9,7 +9,7 @@ project.
 - **Owner**: Mohan.
 - **Local port**: `4001`. Python service: `http://localhost:8000`.
 
-## Status (P020 M3, 2026-09-24)
+## Status (P023 A5-backend, 2026-09-24)
 
 CSV and canonical JSON imports validate and persist through the auditor's
 private SQLite database. Persisted datasets can now be analyzed through
@@ -21,6 +21,9 @@ available through persisted forecast jobs at `POST /api/v1/forecasts` and
 [P006 import](docs/P006_F5_A_EVIDENCE.md) and
 [P015 analysis](docs/P015_ANALYSIS_INTEGRATION_EVIDENCE.md) and
 [P020 forecast](docs/P020_FORECAST_INTEGRATION_EVIDENCE.md).
+Historical room/device breakdowns, exact-bucket office timeseries, and
+calendar-weekday analysis use persisted device interval energy only. See
+[P023 historical analytics](docs/P023_HISTORICAL_ANALYTICS_EVIDENCE.md).
 
 ## Setup and commands (Windows PowerShell or Linux shell; Node >= 24, npm)
 
@@ -68,6 +71,35 @@ Health check: `curl http://localhost:4001/api/v1/health`.
   optional tariff-derived cost.
 - `PUT /api/v1/imports/:id/tariff` — body `{ "inr_per_kwh": 10 }`; rate must
   be finite and nonnegative. The local installation uses one `local` tariff.
+
+## Historical analytics
+
+- `GET /api/v1/imports/:id/rooms` and `/devices` return period-scoped
+  aggregates with stable ID ordering, coverage, observed average/peak power,
+  nominal device rated power, optional tariff cost, provenance, and pagination.
+- `GET /api/v1/imports/:id/timeseries` returns office energy by default;
+  `room_id` or `device_id` filters to that scope. Supported exact buckets are
+  60, 300, 600, 900, 1800, 3600 and 86400 seconds where divisible by source
+  resolution. It includes bucket coverage, full filtered period totals, and
+  page totals.
+- `GET /api/v1/imports/:id/weekday-analytics` returns Monday–Sunday calendar
+  groups in Asia/Kolkata, complete/partial-day counts, and mean energy per
+  complete day. It does not classify workdays from policy.
+- Analytics accept optional half-open `from` and `to` in ISO UTC (also accept
+  additive aliases `from_utc` and `to_utc`); defaults are
+  the imported period. Request boundaries must align to source intervals.
+  Bucket alignment must also match the chosen resolution. Crossing intervals
+  are rejected because exact energy cannot be prorated. One request is limited
+  to 366 days. These calendar routes currently support Asia/Kolkata only.
+- Analytics pagination defaults to 50 breakdown rows or 500 buckets and is
+  capped at 2,000. Stable ordering is by room/device ID or bucket timestamp;
+  every response reports pagination and distinguishes full filtered-period
+  totals from current-page totals. Missing buckets have null energy; partial
+  buckets show known observed energy and an explicit partial status.
+- The summary keeps the legacy `gaps: []` field but sets
+  `gap_assessment.status: "not_performed"`; it does not imply that gaps were
+  assessed. Synthetic/source metadata is passed through in summary and
+  analytics responses.
 
 Limits: 512 MiB upload by default (`UPLOAD_MAX_BYTES`, configurable up to
 1 GiB), one file and no multipart form fields, 900,000 CSV data records, 1.1

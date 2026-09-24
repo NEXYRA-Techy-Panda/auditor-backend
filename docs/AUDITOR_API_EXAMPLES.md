@@ -98,13 +98,13 @@ pagination metadata in `meta`. Page size defaults to 50 and is capped at 200.
 
 Invalid page arguments return 422 `VALIDATION_ERROR`.
 
-## Summary, gaps, and synthetic provenance
+## Summary, gap-assessment state, and synthetic provenance
 
 `GET /api/v1/imports/:id/summary` returns interval energy, tariff-derived
-cost, persisted coverage counts and provenance. Current validation only stores
-complete imports, so `gaps` is currently an empty array; the API does not yet
-emit per-gap objects. Missing required intervals fail import validation rather
-than being reported as zero energy.
+cost, persisted coverage counts and provenance. The legacy `gaps` field remains
+an empty compatibility array, while `gap_assessment.status` explicitly says
+`not_performed`; an empty list does not mean an assessment was completed.
+Analytics endpoints compute bounded coverage for their requested windows.
 
 ```json
 {
@@ -119,7 +119,12 @@ than being reported as zero energy.
       "start_utc": "2026-09-21T03:30:00Z", "end_utc": "2026-09-21T03:32:00Z",
       "device_intervals": 4, "room_intervals": 4
     },
-    "gaps": []
+    "gaps": [],
+    "gap_assessment": {
+      "status": "not_performed",
+      "message": "Per-gap coverage assessment is not performed by the summary endpoint; gaps is retained as an empty compatibility field."
+    },
+    "source_metadata": { "synthetic": true, "synthetic_label": "...", "run": {}, "export": {} }
   },
   "meta": { "request_id": "<request-id>" }
 }
@@ -128,6 +133,90 @@ than being reported as zero energy.
 The energy is summed from persisted device interval energy; cumulative counters
 are not added. A non-synthetic import returns `synthetic: false` and
 `synthetic_label: null`.
+
+## Historical energy analytics (P023)
+
+All analytics use stored `device_intervals.energy_kwh`. Office energy is the
+sum of device rows; room energy is the sum of its devices. Room interval
+metadata, cumulative counters, and device `quantity` are never added or used to
+multiply energy. Cost is observed energy times the current flat tariff; unset
+tariff returns `null`, and a configured zero rate returns numeric zero.
+
+Routes:
+
+| Path | Query filters | Result |
+| --- | --- | --- |
+| `GET /api/v1/imports/:id/rooms` | `from_utc`, `to_utc`, `page`, `page_size` | Stable `room_id` order; room metadata, energy/cost, observed average/peak power, per-device expected/covered seconds and coverage status. |
+| `GET /api/v1/imports/:id/devices` | `from_utc`, `to_utc`, optional `room_id`, `page`, `page_size` | Stable `(room_id, device_id)` order; real metadata, nominal rated power separately from observed average/peak, energy/cost and coverage. |
+| `GET /api/v1/imports/:id/timeseries` | `from_utc`, `to_utc`, optional `room_id` or `device_id`, `bucket_seconds`, `page`, `page_size` | Stable bucket-start order; office scope by default, exact energy/cost and expected/covered duration. |
+| `GET /api/v1/imports/:id/weekday-analytics` | `from_utc`, `to_utc`, optional `room_id` or `device_id` | Monday–Sunday calendar groups, observed totals/cost, complete/partial day counts and complete-day mean. |
+
+Contract window parameters are `from` and `to` in ISO UTC, with additive
+`from_utc` and `to_utc` aliases; supplying both variants for one boundary is a
+validation error. All windows are half-open `[from,to)`, defaulting to the
+imported export range. Boundaries must align to the source grid anchored at export start;
+window length is at most 366 days. Timeseries buckets are 60, 300, 600, 900,
+1800, 3600 or 86400 seconds, and must be at least and divisible by the source
+resolution. Buckets align to the Asia/Kolkata local clock; daily buckets use
+local midnight. Both window boundaries must align to the selected bucket. A
+source interval crossing a requested or bucket
+boundary produces HTTP 422 `UNSUPPORTED_INPUT` with an actionable alignment
+message; energy is never prorated. Calendar grouping currently supports only
+`Asia/Kolkata` (no DST calendar is modeled). Weekday analysis is explicitly
+calendar-weekday-only; it does not call weekdays working days or infer office
+hours from policy.
+
+Breakdown pages default to 50 rows; timeseries pages default to 500 buckets.
+All accept `page` (default 1) and `page_size` (max 2,000). Room/device results
+sort by stable IDs and timeseries by `start_utc`. Pagination metadata reports
+the full filtered count. `full_filtered_observed_energy_kwh` (or
+`full_period_observed_energy_kwh`) spans all matching entities/buckets in the
+requested window; `page_observed_energy_kwh` covers only returned rows.
+
+Missing coverage is not zero consumption. A bucket with no observed rows has
+`energy_kwh: null`; one with some observed energy but incomplete device
+coverage carries that known sum and `coverage.status: "partial"`. Complete
+means every expected device covers the full expected duration with no partial
+or overlapping interval. Summary `gap_assessment.status: "not_performed"`
+means no dataset-wide gap enumeration was run. Per-gap lists are not built.
+Analytics and summary include `provenance: { synthetic, synthetic_label }`
+and/or source metadata so clients can disclose known synthetic inputs.
+
+Reference dataset values:
+
+- Office total: `0.03 kWh`; `light-a`: `0.02 kWh`; `fridge-b`: `0.01 kWh`.
+- Office timeseries for the first minute (two devices at the same timestamp):
+  `0.015 kWh`; equal timestamps on different devices remain distinct.
+- At `₹10/kWh`, office cost is `₹0.30`; at an unset tariff energy remains known
+  while cost is null; at configured zero tariff both rate and cost are `0`.
+- Increasing a device's metadata `quantity` does not change stored interval
+  energy or any aggregate.
+
+Representative response for a partial office minute followed by a fully
+missing minute (abridged):
+
+```json
+{
+  "data": {
+    "scope": { "type": "office" },
+    "full_period_observed_energy_kwh": 0.01,
+    "full_period_complete": false,
+    "page_observed_energy_kwh": 0.01,
+    "items": [
+      { "start_utc": "2026-09-21T03:30:00.000Z", "energy_kwh": 0.01,
+        "coverage": { "status": "partial", "expected_seconds": 120, "covered_seconds": 60 } },
+      { "start_utc": "2026-09-21T03:31:00.000Z", "energy_kwh": null,
+        "coverage": { "status": "missing", "expected_seconds": 120, "covered_seconds": 0 } }
+    ],
+    "pagination": { "page": 1, "page_size": 500, "total": 2, "total_pages": 1 }
+  }
+}
+```
+
+If query parameters are invalid or unsupported, routes return HTTP 422 with
+`VALIDATION_ERROR` or `UNSUPPORTED_INPUT`; unknown dataset IDs return HTTP 404
+`NOT_FOUND`. Unknown query keys and unknown room/device IDs are validation
+errors. These analytics do not call Python.
 
 ## Tariff
 

@@ -1,5 +1,39 @@
 # HANDOFF — auditor-backend
 
+## P023 A5-backend addendum (2026-09-24; implemented, review pending)
+
+- Adds persisted-reading endpoints `GET /api/v1/imports/:id/rooms`,
+  `/devices`, `/timeseries`, and `/weekday-analytics`; request/response details
+  and frontend examples are in `AUDITOR_API_EXAMPLES.md` and
+  `P023_HISTORICAL_ANALYTICS_EVIDENCE.md`.
+- Reads device interval energy only; office is device sum, room is its-device
+  sum, and device quantity/cumulative counters/room interval metadata do not
+  alter energy. Coverage counts distinct per-device interval unions. Missing
+  buckets are null, partial buckets show known energy, overlaps/partial source
+  intervals prevent a complete label, and energy is never prorated.
+- Query windows are half-open, source-grid aligned, at most 366 days;
+  supported buckets are 60, 300, 600, 900, 1800, 3600, and 86400 seconds if
+  divisible by source resolution. Calendar analytics are Asia/Kolkata only;
+  weekdays are calendar-only, not policy-derived workdays. Pagination is stable
+  and capped at 2,000, with current-page and full filtered totals separate.
+- Summary keeps legacy `gaps: []` but now labels assessment
+  `not_performed` and exposes source metadata. Analytics include synthetic
+  provenance. No dataset-wide gap list is generated.
+- Focused scratch-DB actual HTTP evidence: office 0.03 kWh, light 0.02,
+  refrigerator 0.01; ₹10 gives ₹0.30; zero vs unset is distinct. Missing
+  interval, missing bucket, pagination, equal timestamps across devices,
+  quantity, IST midnight/weekday, unequal complete-day counts/means and
+  unsupported alignment/crossing intervals are covered.
+- Checks passed: contract 75/75; schema 24/24; typecheck, lint, build;
+  tests 28/28; import, analysis and forecast HTTP regressions. P015 findings
+  and warning caps remain 100,000 each, evidence cap 100,000 per finding;
+  cap overflow fails the job instead of publishing a partial result, while
+  findings pagination is retrieval-only (max page size 500).
+- Contract and sibling repos remain unchanged. Next frontend action: OpenCode
+  integrates the documented office timeseries, room/device, and weekday routes
+  with explicit provenance, coverage and page/full-period totals. Review is
+  pending; stop after P023.
+
 ## P020 M3 addendum (2026-09-24; implemented and published, review pending)
 
 - Adds `POST /api/v1/forecasts` and `GET /api/v1/forecasts/:id`. The POST

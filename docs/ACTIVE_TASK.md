@@ -1,37 +1,47 @@
-# ACTIVE_TASK â€” auditor-backend
+# ACTIVE_TASK — auditor-backend
 
 ## Layer
 
-P020, Agent C â€” Codex, M3 auditor forecast integration. Owner: Mohan.
-Exclusive write scope: `auditor-backend`. Read-only Python baseline:
-P013 commit `7f71363aa9361e67a0cb2815b98aee79b0708cf9`.
+P023, Agent C — Codex, A5-backend historical energy analytics. Owner: Mohan.
+Exclusive write scope: `auditor-backend`. Starting HEAD:
+`df1ecbd08369d71f88de9cf5f26e6d8fd44e8ebd`, branch `main`.
 
 ## Status
 
-- Task: completed and published. Review: pending.
-- Starting auditor HEAD `32d88beabc7d0e1d1a3fb7d26ae74117b4cce6ca` was clean on
-  `main`, equal to `origin/main`.
-- P006 and P015 outcomes are preserved in `PROGRESS_LOG.md` and `HANDOFF.md`.
-- P015 correctness evidence addendum is in
-  `P015_ANALYSIS_INTEGRATION_EVIDENCE.md`; it closes the result-cap overflow
-  test gap and distinguishes retrieval pagination from result bounds.
+- Implementation: completed. Review: pending.
+- P020 is preserved in `HANDOFF.md` and prior `PROGRESS_LOG.md` entries.
+- Contract and sibling repositories unchanged.
 
-## Checkpoint â€” 2026-09-24
+## Completed
 
-- Reused P015's persisted job queue for forecasts; added migration v3, typed
-  Python `/v1/forecast` client, public forecast job routes and persisted hourly
-  results. Existing import and analysis APIs remain available.
-- Built history from stored device interval energy on the Asia/Kolkata hourly
-  grid, with complete non-overlapping coverage required for every expected
-  device. Exact partial unions are accepted; crossing-hour intervals,
-  overlaps and missing device hours are omitted and disclosed.
-- Added deterministic/API tests for all horizons, 2,160-hour cap,
-  missing/overlap/partial/crossing inputs, origin defaults, policy transitions,
-  persistence, tariff handling and Python response validation. Final suite:
-  27/27 pass.
-- Real P013 HTTP check: 672 observed hours, 720 November points, 10.8 kWh,
-  current tariff repricing, and a persisted insufficient-history failure.
-- Contract 75/75, schema 24/24, typecheck, lint, build and import HTTP regression
-  pass. Feature commit `a7129f23873df9481fea249021d6a2599bcfd37d` is pushed to
-  `origin/main`. Exact next action: implement forecast submit/poll/result UI in
-  `auditor-frontend` as a separate task; review pending, stop after P020.
+- Added `/rooms`, `/devices`, `/timeseries`, and `/weekday-analytics`
+  persisted-data routes; detailed filters, coverage, exact bucket behavior,
+  provenance, pagination and examples are in `AUDITOR_API_EXAMPLES.md` and
+  `P023_HISTORICAL_ANALYTICS_EVIDENCE.md`.
+- Energy comes only from device interval energy, once per stored row. Added
+  explicit expected/covered device-duration reporting, complete/partial/missing
+  labels, null missing-bucket totals, local calendar weekday counts/means,
+  current tariff cost, and synthetic provenance. No interval prorating.
+- Summary now exposes source metadata and `gap_assessment.status` of
+  `not_performed`, retaining compatibility `gaps: []`.
+- Added a synthetic scratch-DB test that exercises the actual app over HTTP,
+  including reference values, gaps, pagination, quantity, timezone/weekday and
+  alignment behavior.
+
+## Verification
+
+- Contract 75/75; schema 24/24; typecheck/lint/build pass; tests 28/28.
+- Actual HTTP regressions: import pass (201 then equivalent 200, 0.03 kWh,
+  tariff 10 -> 0.30); analysis P010 pass; forecast P013 pass.
+- P015 existing caps: 100,000 findings, 100,000 warnings, 100,000 evidence
+  intervals per finding. Exceeding a cap fails the job without partial success;
+  result pagination is retrieval-only, maximum 500.
+- No task-owned process remains on 4001/8000; no temporary forecast directory.
+  Full scale upload benchmark was not repeated.
+
+## Exact next action
+
+Commit task-owned changes and push `main` normally, verify local HEAD matches
+`origin/main` and working tree is clean, then hand off to OpenCode to consume the
+documented analytics routes in auditor-frontend. Stop after P023; review remains
+pending.
