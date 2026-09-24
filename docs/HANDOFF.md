@@ -35,10 +35,12 @@
   pending; stop after P023.
 - Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` was pushed normally
   to `origin/main`; `git ls-remote` matched local HEAD at verification.
-- Final continuity commit `dec0c164eace26051a010b4ff2aefe113a0e9650` was also
-  published. At final inspection, `auditor-frontend` had concurrent uncommitted
-  changes in `app/lib/forecast.ts` and its continuity docs; these were not read
-  or modified. The other sibling worktrees were clean.
+- Continuity commit `dec0c164eace26051a010b4ff2aefe113a0e9650` was published.
+  During P023 close, `auditor-frontend` showed concurrent uncommitted changes:
+  modified `docs/ACTIVE_TASK.md` and `docs/PROGRESS_LOG.md`, plus untracked
+  `app/lib/forecast.ts` and `app/lib/__tests__/forecast.test.mjs`. These were
+  not read or modified. Other sibling worktrees were clean at the earlier
+  inspection; frontend state can continue to change independently.
 
 ## P020 M3 addendum (2026-09-24; implemented and published, review pending)
 

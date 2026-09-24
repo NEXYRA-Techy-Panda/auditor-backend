@@ -411,9 +411,10 @@ correction entry; do not rewrite history.
 - No task-owned processes/temp directories remain; ports 4001 and 8000 are
   clear. Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` and
   continuity commit `dec0c164eace26051a010b4ff2aefe113a0e9650` were pushed
-  normally; local and remote `main` matched, working tree clean. At final
-  inspection, auditor-frontend had concurrent changes in `app/lib/forecast.ts`
-  and its continuity docs; they were preserved untouched. Other siblings and
-  contract remain unchanged. Exact next action: OpenCode integrates the
+  normally; local and remote `main` matched, working tree clean. During task
+  close, auditor-frontend showed concurrent modified continuity docs and
+  untracked `app/lib/forecast.ts` plus `app/lib/__tests__/forecast.test.mjs`;
+  they were preserved untouched. Other siblings and contract remain unchanged.
+  Exact next action: OpenCode integrates the
   documented historical analytics into auditor-frontend; review pending, stop
   after P023.
