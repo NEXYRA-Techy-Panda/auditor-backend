@@ -40,7 +40,9 @@
 - No Python/model/anomaly/forecast/report/chart/frontend changes. Current next
   action after commit/push: provide this handoff to the next assigned task;
   import is the only new analysis-facing capability.
-- Publication hash: pending final commit/push verification.
+- Implementation commit `3154e78493a0b310d58dd1101b5ccc337e64b0fb` was pushed
+  without force; remote hash matched local HEAD. Final continuity-document
+  publication verification is recorded in the P006 evidence.
 
 ## P003 F3-A addendum (2026-09-24; implementation complete, review pending)
 

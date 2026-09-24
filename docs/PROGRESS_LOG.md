@@ -253,13 +253,12 @@ correction entry; do not rewrite history.
 - Full checks: contract 75/75; formal schema 24/24; typecheck/lint/build pass;
   tests 10/10. First/duplicate/CSV-equivalent/tariff paths demonstrated against
   the actual server on port 4001 and a disposable SQLite file.
-- Scale: generated 31-day one-minute export, 133,304,273 bytes; 803,520 device
-  intervals plus 223,200 room intervals; HTTP 201; 140.39 s; summary
-  93.74400026784001 kWh. Highest sampled server working set 850,149,376 bytes,
-  sampled mid-run and not asserted as peak. Only task-owned server was stopped;
-  port 4001 is no longer listening; temporary files/databases removed.
-- Next action: finish evidence/README/status review, commit and push without
-  force, verify remote `main` matches local HEAD and tree/process status.
+- Scale: final-code generated 31-day export, 133,304,273 bytes; 803,520 device
+  intervals plus 223,200 room intervals; HTTP 201; 66 s; summary
+  93.74400026784001 kWh. A mid-run sample was 838,115,328 working-set bytes,
+  not asserted as peak. Task-owned processes and temporary files were removed.
+- Next action: publish final continuity hash/status updates and verify remote
+  `main` hash and clean tree/process status.
 
 ## 2026-09-24 — P006 F5-A final verification checkpoint
 
@@ -276,3 +275,12 @@ correction entry; do not rewrite history.
   4001 has no listener; `git diff --check` passed. All changed files are in
   `auditor-backend`; contract and sibling repositories are unchanged.
 - Next action: commit and push without force, verify remote hash and clean tree.
+
+## 2026-09-24 — P006 F5-A implementation published
+
+- Implementation commit `3154e78493a0b310d58dd1101b5ccc337e64b0fb` pushed to
+  `origin/main` without force. `git ls-remote` matched local HEAD; working tree
+  was clean, port 4001 had no listener, and task-owned temp resources were
+  removed.
+- Final continuity/hash update remains to publish. Review pending; stop after
+  P006.

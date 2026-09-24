@@ -14,7 +14,7 @@ Contract 1.0.1 under `contracts/v1/` is read-only.
 
 ## Status
 
-- Task: in_progress.
+- Task: completed.
 - Review: pending.
 - Expected accepted baseline: `aa53d0c190ec9295354d34cb432a810144c79345`.
 - Startup: fetched `origin`; branch `main` was clean at expected baseline.
@@ -45,10 +45,11 @@ Contract 1.0.1 under `contracts/v1/` is read-only.
   Both owned server processes and temporary resources were stopped/removed.
 - Final checks against the final code: contract 75/75; schema 24/24;
   typecheck/lint/build pass; tests 10/10; live HTTP and scale scripts pass.
-- Next action: commit/push the reviewed auditor-backend files without force,
-  verify `origin/main` equals local HEAD and confirm clean process/tree status.
+- Published implementation `3154e78493a0b310d58dd1101b5ccc337e64b0fb` to
+  `origin/main` without force; remote hash matched local HEAD. Port 4001 has no
+  listener and the working tree was clean at verification.
 
 ## Exact next action
 
-Commit the reviewed auditor-backend changes, push without force, verify remote
-HEAD and clean process/tree status. Stop after P006.
+P006 implementation and publication are complete. Review remains pending; stop
+after P006.

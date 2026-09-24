@@ -227,5 +227,8 @@ assigned auditor integration task. Review remains pending.
 
 ## Commit and remote
 
-Commit/push and final `origin/main` hash verification will be appended here
-after the reviewed changes are published.
+Implementation commit `3154e78493a0b310d58dd1101b5ccc337e64b0fb` was pushed
+to `origin/main` without force. Immediately after push, `git ls-remote
+origin refs/heads/main` and local `git rev-parse HEAD` both returned that hash;
+the tree was clean, port 4001 had no listener, and task-owned temporary
+resources were removed. Review remains pending.
