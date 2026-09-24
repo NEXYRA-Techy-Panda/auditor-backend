@@ -12,8 +12,7 @@ frontends, parent files, or shared contract snapshots.
 
 ## Task and review status
 
-- Task status: in_progress (implementation/checkpoint complete; final commit and
-  remote verification pending).
+- Task status: completed.
 - Review status: pending.
 
 ## Ownership and baseline
@@ -40,10 +39,13 @@ frontends, parent files, or shared contract snapshots.
   persistence passed.
 - Updated README/setup command and ignored DB/WAL/SHM files. No development DB
   was written; test DBs are removed by the test.
-- Pending: run full contract/schema/typecheck/lint/test/build set, inspect
-  diff/status, commit and push without force, then verify remote branch hash.
+- Verification completed: contract 75/75; schema 24/24; typecheck/lint/build
+  passed; tests 8/8; migration CLI succeeded on `:memory:`.
+- Commit and push completed without force: `571078274730811392ddbd53990d6eb17b0cde09`.
+  Verified `origin/main` equals the commit; working tree clean. No process was
+  started by this assignment.
 
 ## Exact next action
 
-Finish all listed checks and evidence docs, commit task-owned changes, push
-`main`, verify `origin/main` equals the pushed commit, and report results.
+P003 F3-A is complete. Stop here; next import/integration work requires its own
+assigned task. Review status remains pending.

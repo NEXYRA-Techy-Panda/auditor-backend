@@ -31,7 +31,9 @@
   `AuditorDatabase.storeDataset()` with a validated semantic fingerprint and
   validated structured export. Do not infer fingerprint equivalence from the
   file hash.
-- Commit/push reference: pending final repository verification.
+- Commit/push: `571078274730811392ddbd53990d6eb17b0cde09` on `main`, pushed
+  without force; `git ls-remote origin refs/heads/main` returned the same hash.
+  Working tree was clean after push. No task-owned runtime process remains.
 
 ## 0. Continuity and current layer (F0.1, 2026-09-24)
 

@@ -118,6 +118,7 @@ computes fingerprints from semantic content, not file bytes alone.
 
 ## Repository and remote status
 
-At evidence authoring time, implementation checks were green. Commit/push,
-final clean working tree and remote branch hash verification remain pending
-and will be recorded in the task handoff after publication.
+Commit `571078274730811392ddbd53990d6eb17b0cde09` was pushed to `main`
+without force. `git ls-remote origin refs/heads/main` returned the same hash.
+The working tree was clean after push. No task-owned service process remains.
+Review status is pending.

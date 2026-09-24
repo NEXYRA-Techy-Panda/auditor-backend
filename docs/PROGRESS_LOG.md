@@ -233,8 +233,7 @@ correction entry; do not rewrite history.
   startup/repeat migration, 0.03 kWh reference import, rollback, same IDs in
   separate datasets, foreign-key enforcement, repeat/conflict identity,
   tariff independence and close/reopen persistence.
-- No development DB or runtime process was created. Commit and remote hash
-  verification pending.
-- Next action: review git diff and ignored database patterns, commit/push this
-  repo's P003 changes without force, verify remote `main`, update this entry
-  with exact commit and working tree/process results.
+- No development DB or runtime process was created. Commit
+  `571078274730811392ddbd53990d6eb17b0cde09` was pushed without force;
+  `origin/main` verified to the same hash. Working tree clean after push.
+- Task complete; review pending. Stop after P003.
