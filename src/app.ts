@@ -11,6 +11,7 @@ import type { AnalysisJobManager } from './analysis/jobs.js';
 import type { PythonAnalysisClient } from './analysis/client.js';
 import { forecastsRouter } from './routes/forecasts.js';
 import { historicalRouter } from './routes/historical.js';
+import { reportsRouter } from './routes/reports.js';
 
 export function createApp(config: Config, database?: AuditorDatabase, services: { python?: PythonAnalysisClient; jobs?: AnalysisJobManager } = {}): Express {
   const app = express();
@@ -23,6 +24,7 @@ export function createApp(config: Config, database?: AuditorDatabase, services: 
   if (database) {
     app.use('/api/v1', importsRouter(database, config.uploadMaxBytes));
     app.use('/api/v1', historicalRouter(database));
+    app.use('/api/v1', reportsRouter(database));
   }
   if (database && services.jobs) {
     app.use('/api/v1', analysisRouter(services.jobs, database));

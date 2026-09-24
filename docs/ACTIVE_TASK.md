@@ -1,5 +1,27 @@
 # ACTIVE_TASK — auditor-backend
 
+## P028-BACKEND — evidence-backed report economics API (2026-09-25)
+
+- Owner: Mohan | Agent M-B — Codex. Implementation and local verification are
+  complete; review pending. Added the read-only `POST /api/v1/reports/preview`
+  against persisted completed vacancy findings and the current saved INR
+  tariff, using the prepared pure economics module. No migration or frontend
+  edit. Evidence and frontend response contract:
+  [P028 backend evidence](P028_BACKEND_REPORT_API_EVIDENCE.md) and
+  [API examples](AUDITOR_API_EXAMPLES.md).
+- Main had no uncommitted work. Prepared branch `mohan/p028-report-math-prep`
+  was integrated by a normal merge while retaining main's P026-R1 evidence,
+  script fixes and detector-failure regression; prepared worktree remains.
+- Main SQLite loaded in-memory successfully (SQLite 3.53.4). Scratch SQLite and
+  loopback HTTP route checks passed; `npm test` 59/59; typecheck, lint, build,
+  and `git diff --check` passed. No production database/request or service
+  restart. Normal push/deployment observation pending.
+- Exact next action: M-A integrates preview forms/sections in the separate
+  frontend assignment; then verify print output. Matched-scenario comparison
+  stays separate pending persisted external-input provenance.
+
+## Prior assignment / preserved history
+
 ## Current assignment / Layer ID
 
 **P026-R1 — deployment recovery and detector integration verification**

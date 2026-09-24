@@ -564,3 +564,40 @@ correction entry; do not rewrite history.
 - Review status: pending. Exact next action: frontend integration in
   `auditor-frontend` (separate assignment) using the P026-R1 evidence handoff.
   Stop after P026-R1.
+
+## 2026-09-25 — P028-BACKEND report economics API
+
+- Integrated the prepared `src/reporting/economics.ts` module and added
+  `POST /api/v1/reports/preview`. The endpoint reads a consistent SQLite
+  snapshot of persisted dataset metadata, completed vacancy job, selected
+  finding rows, and current local tariff. It is read-only and adds no schema.
+- Stable finding IDs are existing `finding_id` values from analysis results,
+  resolved inside the requested job/dataset. The API
+  rejects non-vacancy/unpriced evidence, incomplete or mismatched jobs,
+  unknown rows, client energy/tariff/evidence/ownership overrides, invalid
+  economics and more than 50 unique selected findings. Economics use the pure
+  module, keep observed periods unchanged by default, label explicit user
+  assumptions, preserve zero versus null, and disclose overlap exclusions.
+  Scenario comparison remains unverified due to missing matched external
+  input provenance.
+- Main worktree started clean at `676e82c253563b376cd0c705d77bf7e5072847f4`.
+  Normal merge integrated local branch `mohan/p028-report-math-prep` at
+  `3c13fbb51a5ce3addc8964fa171cf634288c5838`; P026-R1 evidence, scripts and
+  detector-failure test were kept from main while preparing docs were
+  integrated. The prepared worktree remains preserved.
+- SQLite check: installed main-worktree `better-sqlite3` opened `:memory:` and
+  returned 3.53.4. Actual HTTP route with scratch DB: 0.01 kWh × ₹10 = ₹0.10;
+  missing and zero tariff remain distinct; explicit assumptions calculate;
+  overlap is not summed/ranked; invalid ownership, unsupported findings and
+  caller overrides are rejected; preview does not change fixture readings or
+  job count. Test fixture seeds the persisted completed job/finding directly;
+  this tests HTTP plus real SQLite, not Python analysis execution.
+- Checks: `npm run typecheck`, `npm run lint`, `npm run build`, `npm test`
+  (59/59), focused `node_modules/.bin/tsx.cmd --test test/reports.test.ts`
+  (3/3), and `git diff --check` passed. No production DB, preview request,
+  service restart, external tool install, benchmark, or training.
+- Evidence: `docs/P028_BACKEND_REPORT_API_EVIDENCE.md`; exact frontend response
+  examples: `docs/AUDITOR_API_EXAMPLES.md`. Local commit and push are not yet
+  recorded; review pending. Exact next action: M-A integrates this API in the
+  separate frontend task; print verification and matched-scenario comparison
+  remain follow-ups.

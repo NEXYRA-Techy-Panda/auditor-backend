@@ -1,5 +1,25 @@
 # HANDOFF — auditor-backend
 
+## P028-BACKEND report economics API (2026-09-25; local verification complete, review pending)
+
+- Added read-only `POST /api/v1/reports/preview`, using existing stable
+  analysis-result `finding_id` values from completed vacancy jobs and current saved
+  INR tariff. No migration, shared contract change, Python call, or frontend
+  edit. Request/response/error contract and evidence provenance are in
+  [AUDITOR_API_EXAMPLES](AUDITOR_API_EXAMPLES.md) and
+  [P028 backend evidence](P028_BACKEND_REPORT_API_EVIDENCE.md).
+- Preview validates dataset/job/finding ownership and completion, rejects
+  unsupported evidence and caller-supplied savings/prices, preserves unknown
+  versus zero, applies only explicit economics assumptions, reports overlapping
+  claims without summing, and marks matched-scenario comparison unverified.
+- Verification used the main worktree's installed SQLite 3.53.4 with in-memory
+  and scratch DB fixtures plus the actual loopback HTTP route. `npm test`
+  passed 59/59; typecheck, lint, build and diff check passed. No production DB
+  or API request was used. Push/release status must be recorded only after
+  observing those actions separately.
+- Next action: M-A wires the documented API into `auditor-frontend`; print
+  verification and matched-scenario provenance need their own follow-up.
+
 ## P026-R1 deployment-recovery addendum (2026-09-25; verification complete, review pending)
 
 - **Assignment:** P026-R1, deployment recovery and detector integration
@@ -498,3 +518,74 @@ occupants. No live simulator connection in MVP1 (file upload only).
 After each layer, update date, branch/HEAD, §§2–3/7–11 with actual files,
 commands and results; preserve history; keep §§1/12/14 unless scope formally
 changes. Return updated sections as evidence.
+# P028-PREP branch-local preparation (2026-09-25)
+
+- Developer Mohan | M-B — Codex. Separate worktree
+  `K:\NEXYRA-P028-report-math-prep`, branch `mohan/p028-report-math-prep`,
+  based on `d0fcd092fa39ca17a7efbcdaeffd4e43bd1c2eb1`.
+- Local implementation commit: `abab61321c723f2a2c8cf30392d64fabed496528`;
+  feature branch was not pushed; review pending.
+- Source/test/evidence: `src/reporting/economics.ts`,
+  `test/P028_report_economics.test.ts`,
+  `docs/P028_REPORT_MATH_PREP_EVIDENCE.md`.
+- Prepared pure evidence, projection, ROI/payback, overlap and comparison
+  calculations. No route, database, contract, startup, dependency or frontend
+  changes.
+- Six direct Node 24 known-answer checks passed. Typecheck and lint could not
+  start (`tsc`/`eslint` absent); focused test runner could not resolve offline
+  (`ENOTCACHED`). Checkout has no `node_modules`. No installation, network,
+  service or database activity.
+- Feature branch remains local because the project records warn a push may
+  trigger deployment and do not explicitly establish a non-deploying feature
+  branch pipeline. The module is not merged, exposed through the API or
+  deployed. Review pending.
+- Next action: run typecheck/lint/focused test when dependencies are available;
+  then backend/API and frontend integration in separately scoped work.
+
+## P028-PREP-R1 verification follow-up (2026-09-25; blocked, review pending)
+
+- Worktree/branch unchanged: `K:\NEXYRA-P028-report-math-prep`,
+  `mohan/p028-report-math-prep`. Targeted math/test/evidence changes are
+  committed locally in `538f87cdc18bce4d59f510a9bd417309cfe65ce5`; no push,
+  merge or deployment.
+- `npm ci` exited 1 compiling locked `better-sqlite3@13.0.3`: node-gyp found
+  Python 3.13.15 but no Visual Studio C++ workload. No retry or `--ignore-scripts`
+  bypass. Consequently typecheck, lint, focused tsx tests and build exited 1
+  (`tsc`/`eslint`/`tsx` unavailable; offline runner returned `ENOTCACHED`).
+- Twenty-seven direct Node 24 module assertions passed; `git diff --check` passed.
+  These do not substitute for TypeScript/lint/project test/build gates.
+- Fixes: explicit gross recurring INR/month savings rate for payback with
+  recurring cost deducted once; ranking gates on support/known cost and exact
+  economic basis; policy provenance/intended-intervention verification; UTC
+  timestamps; preserve upfront cost on unavailable savings; reject nonfinite
+  results. Focused tests cover each change.
+- The future backend must derive/verify caller claims against persisted data.
+  Existing contract/import/analysis fields provide dataset/run, synthetic
+  provenance, intervals, coverage and vacancy job/finding/method evidence.
+  An established external-input fingerprint/comparison route is not present;
+  comparison must remain unverified until backend persistence proves matching
+  external inputs. No report endpoint or frontend is implemented.
+- Processes: the npm install/check commands exited; no task-owned service,
+  database or training process remains. No process was stopped.
+- R1 exact next action (superseded in R2): provision Visual Studio “Desktop development with C++”
+  locally; in this worktree run `npm ci`, `npm run typecheck`, `npm run lint`,
+  `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts`, and
+  `npm run build`, then address any findings. API/UI integration and release
+  verification require later assignments. Review pending.
+
+## P028-PREP-R2 verification closeout (2026-09-25; complete, review pending)
+
+- One `npm ci --ignore-scripts` in the isolated worktree succeeded (197 added;
+  lifecycle scripts omitted). Versions match lock: TypeScript 6.0.3, ESLint
+  10.11.0, tsx 4.23.15, better-sqlite3 13.0.3.
+- Typecheck/lint/build all passed. Focused P028 tsx test passed 19/19.
+  `git diff --check` passed. The previous failure was native node-gyp build for
+  better-sqlite3, not security/approval; the debug log rotated, with the error
+  preserved in committed R1 continuity evidence.
+- No database tests or runtime services. `better_sqlite3.node` is absent due
+  skipped install scripts; runtime compatibility is unverified. No fallback
+  toolchain, code fixes, dependency manifest changes, API/UI implementation,
+  push, merge or deployment.
+- Exact next action: separately integrate a report API backed by verified
+  persisted findings/datasets, then integrate the frontend report UI. Do not
+  claim external-input matching until the backend can prove it. Review pending.

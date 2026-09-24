@@ -7,6 +7,124 @@ illustrative. Examples are checked against the actual Express routes and the
 P010 service integration at commit
 `36f5832f298379c3a889a32673c409152aa8eaf0`.
 
+## Evidence-backed report economics preview (P028-BACKEND)
+
+`POST /api/v1/reports/preview` is an additive read-only application API. It
+accepts only a dataset, one completed vacancy analysis job and stable persisted
+finding IDs. A finding ID is the database key `<job-id>:<finding-id>` (not a
+pagination index). Body size uses the existing 100 KiB JSON limit; at most 50
+unique findings are accepted. Pass each finding's existing `finding_id` from
+the analysis result directly; the backend resolves it within the selected
+job. Caller-supplied energy, evidence, tariff or
+ownership fields are rejected.
+
+No investment assumptions: the finding's supported observed-window savings
+are priced with the current saved INR/kWh tariff. The route does not annualize
+or infer ROI/payback.
+
+```http
+POST /api/v1/reports/preview
+Content-Type: application/json
+
+{"dataset_id":"ds-1","job_id":"job-1","finding_ids":["vacant_but_on:light-1:2026-09-21T03:30:00Z"]}
+```
+
+Explicit user economics: fields are assumptions, not persisted measurements.
+Projection days and months must be supplied together, with 30 days per month;
+changing from the finding's observed period requires an explicit extrapolation.
+Recurring cost amount and period must be supplied together.
+
+```http
+POST /api/v1/reports/preview
+Content-Type: application/json
+
+{"dataset_id":"ds-1","job_id":"job-1","finding_ids":["vacant_but_on:light-1:2026-09-21T03:30:00Z"],"economics":{"implementation_cost_inr":12000,"recurring_cost_inr":0,"recurring_cost_period_months":1,"supported_gross_recurring_savings_inr_per_month":2000}}
+```
+
+The successful response below is the exact shape and known-answer example for a
+persisted 0.01 kWh vacancy finding covering one minute, a saved tariff of
+₹10/kWh, no investment assumptions, and synthetic fixture provenance. Dynamic
+request ID and generation time are illustrative.
+
+```json
+{
+  "data": {
+    "dataset_id": "ds-1",
+    "run_id": "run-1",
+    "job_id": "job-1",
+    "evidence": {
+      "source": "persisted_completed_vacancy_findings",
+      "synthetic": true,
+      "synthetic_label": "reference fixture",
+      "coverage": {"start_utc":"2026-09-21T03:30:00Z","end_utc":"2026-09-21T03:32:00Z"},
+      "finding_count": 1
+    },
+    "tariff": {"inr_per_kwh":10,"currency":"INR","provenance":"current_saved_local_tariff"},
+    "generated_utc":"2026-09-25T00:00:00.000Z",
+    "recommendations":[{
+      "recommendation_id":"vacant_but_on:light-1:2026-09-21T03:30:00Z",
+      "suggested_action":"Review the lighting schedule",
+      "evidence_type":"vacancy_estimate",
+      "method":"rule",
+      "evidence":{
+        "reference":{"dataset_id":"ds-1","run_id":"run-1","job_id":"job-1","finding_id":"vacant_but_on:light-1:2026-09-21T03:30:00Z","device_id":"light-1","room_id":"room-1","start_utc":"2026-09-21T03:30:00Z","end_utc":"2026-09-21T03:31:00Z"},
+        "finding_assumptions":["Vacancy beyond grace; standby draw applied"],
+        "coverage_limitations":["60-second intervals"],
+        "synthetic":true,
+        "avoidable_energy_kwh":0.01,
+        "source_period_days":0.0006944444444444445,
+        "savings_basis":"vacant_but_on:light-1:2026-09-21T03:30:00Z persisted avoidable_energy_kwh",
+        "energy_provenance":"measured_and_derived_from_persisted_finding"
+      },
+      "economics":{
+        "status":"available","unavailable_reason":null,"projection_label":"observed_period","projection_assumption":null,
+        "projected_energy_reduction_kwh":0.01,"gross_savings_inr":0.1,"recurring_cost_inr":0,
+        "net_period_savings_inr":0.1,"implementation_cost_inr":null,"upfront_classification":"unknown",
+        "period_roi_percent":null,"simple_payback_months":null,"supported_net_recurring_savings_inr_per_month":null,
+        "payback_status":"unknown_cost","currency":"INR","tariff_inr_per_kwh":10,
+        "calculation_input":{"supported_energy_reduction_kwh":0.01,"source_period_days":0.0006944444444444445,
+          "projection_period_days":0.0006944444444444445,"projection_period_months":0.00002314814814814815,
+          "tariff_inr_per_kwh":10,"implementation_cost_inr":null,"recurring_cost_inr":null,
+          "recurring_cost_period_months":null,"extrapolation":null,"supported_gross_recurring_savings_inr_per_month":null},
+        "assumptions_provenance":"no_user_economics_assumptions"
+      },
+      "overlap_excluded_from_ranking":false
+    }],
+    "ranking":{"ranking_basis":"shortest_supported_simple_payback","ranked_ids":[],
+      "unranked_ids":["vacant_but_on:light-1:2026-09-21T03:30:00Z"],"overlap_conflicts":[],
+      "meaning":"Only comparable recommendations with supported payback and known upfront cost are ranked; this is not a verified outcome."},
+    "overlap_conflicts":[],
+    "scenario_comparison":{"status":"unverified","reason":"Persisted external-input provenance does not establish matched scenarios"}
+  },
+  "meta":{"request_id":"<request-id>"}
+}
+```
+
+Successful responses keep every selected recommendation separate. Overlapping
+same-device UTC windows appear in `data.overlap_conflicts[]`; their individual
+evidence remains visible, but those IDs are unranked and never summed. The
+ranking meaning is shortest supported simple payback among comparable entries;
+unknown costs/rates and incompatible bases stay in `unranked_ids`.
+
+Failure examples use the standard error envelope. Unknown dataset, job, or
+finding is `404 NOT_FOUND`; wrong job/dataset, incomplete job, invalid
+assumptions, unsupported detector/finding and request-count limits are `422`
+with `VALIDATION_ERROR` or `UNSUPPORTED_INPUT` and a field where applicable.
+The existing JSON body bound returns `413 REQUEST_TOO_LARGE`.
+
+```json
+{"error":{"code":"UNSUPPORTED_INPUT","message":"Only completed vacancy analysis jobs support avoidable-energy reports","field":"job_id"}}
+```
+
+The report distinguishes measured/persisted inputs (dataset/job/finding IDs,
+windows, coverage, synthetic provenance and supported vacancy avoidable
+energy), derived values (tariff multiplication, economics formulas, overlap and
+ranking), and assumptions (explicit cost, recurring rate, projection and
+extrapolation inputs). Current tariff is the saved value read at preview time.
+Matched-scenario comparison remains unverified because persisted external
+input provenance is not established. Full handoff and limitations:
+[P028 backend evidence](P028_BACKEND_REPORT_API_EVIDENCE.md).
+
 ## Import and identity
 
 `POST /api/v1/imports` accepts one multipart file in field `file`.

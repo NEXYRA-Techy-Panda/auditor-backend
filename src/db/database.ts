@@ -75,6 +75,14 @@ export interface DatasetSummary {
   source_metadata: JsonRecord;
 }
 
+export interface ReportEvidenceSnapshot {
+  dataset: AnalysisDatasetMeta | undefined;
+  job: AnalysisJobRecord | undefined;
+  findings: Array<{ details: JsonRecord }>;
+  tariff_inr_per_kwh: number | null;
+  tariff_currency: string | null;
+}
+
 const str = (row: JsonRecord, key: string): string => {
   const value = row[key];
   if (typeof value !== 'string') throw new TypeError(`Expected ${key} to be a string`);
@@ -414,6 +422,25 @@ export class AuditorDatabase {
   getCurrentTariff(userId = 'local'): number | null {
     const row = this.connection.prepare('SELECT rate_per_kwh FROM user_tariff_settings WHERE user_id=?').get(userId) as { rate_per_kwh: number } | undefined;
     return row?.rate_per_kwh ?? null;
+  }
+
+  getReportEvidenceSnapshot(datasetId: string, jobId: string, findingIds: string[], userId = 'local'): ReportEvidenceSnapshot {
+    return this.connection.transaction(() => {
+      const dataset = this.getAnalysisDatasetMeta(datasetId);
+      const job = this.getAnalysisJob(jobId);
+      if (!dataset || !job) return { dataset, job, findings: [], tariff_inr_per_kwh: null, tariff_currency: null };
+      const findingRows = findingIds.map((findingId) => {
+        const row = this.connection.prepare(`SELECT details_json
+          FROM findings WHERE finding_id=? AND job_id=? AND dataset_id=?`).get(`${jobId}:${findingId}`, jobId, datasetId) as
+          { details_json: string } | undefined;
+        return row ? { details: JSON.parse(row.details_json) as JsonRecord } : undefined;
+      });
+      const tariff = this.connection.prepare('SELECT currency,rate_per_kwh FROM user_tariff_settings WHERE user_id=?').get(userId) as
+        { currency: string; rate_per_kwh: number } | undefined;
+      return { dataset, job, findings: findingRows.filter((row): row is NonNullable<typeof row> => row !== undefined),
+        tariff_inr_per_kwh: tariff?.currency === 'INR' ? tariff.rate_per_kwh : null,
+        tariff_currency: tariff?.currency ?? null };
+    }).deferred();
   }
 
   getForecastRecord(forecastId: string): JsonRecord | undefined {
