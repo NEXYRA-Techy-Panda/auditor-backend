@@ -45,6 +45,9 @@ export class AnalysisBatchRunner {
   constructor(private readonly database: AuditorDatabase, private readonly python: PythonAnalysisClient,
     private readonly resultLimits: Readonly<AnalysisResultLimits> = DEFAULT_ANALYSIS_RESULT_LIMITS) {}
 
+  /** The shared Python client, reused by the P026 device detectors. */
+  get client(): PythonAnalysisClient { return this.python; }
+
   estimateBatches(datasetId: string, startUtc: string, endUtc: string, batchSize = OWNED_DEVICE_ROWS_PER_BATCH): number {
     const deviceIds = this.database.getAnalysisDeviceIds(datasetId, startUtc, endUtc);
     return deviceIds.reduce((total, item) => total + Math.ceil(this.database.getAnalysisDeviceStarts(datasetId, item.device_id, startUtc, endUtc).length / batchSize), 0);
@@ -206,13 +209,13 @@ function policyForPython(policy: AnalysisPolicyMeta): JsonRecord {
   return { policy_id: policy.policy_id, version: policy.version, kind: policy.kind,
     applies_to: policy.applies_to, effective_from_utc: policy.effective_from_utc, rules: policy.rules };
 }
-function roomIntervalForPython(row: StoredAnalysisInterval): JsonRecord {
+export function roomIntervalForPython(row: StoredAnalysisInterval): JsonRecord {
   return { room_id: row.room_id, interval_start_utc: row.interval_start_utc, interval_end_utc: row.interval_end_utc,
     interval_seconds: row.interval_seconds, occupancy_avg: row.occupancy_avg, occupancy_max: row.occupancy_max,
     occupied_fraction: row.occupied_fraction, ...(row.avg_temp_c === null ? {} : { avg_temp_c: row.avg_temp_c }),
     ...(row.avg_rh_pct == null ? {} : { avg_rh_pct: row.avg_rh_pct }), partial: row.partial === 1 || row.partial === true };
 }
-function deviceIntervalForPython(row: StoredAnalysisInterval): JsonRecord {
+export function deviceIntervalForPython(row: StoredAnalysisInterval): JsonRecord {
   return { run_id: row.run_id, room_id: row.room_id, device_id: row.device_id,
     interval_start_utc: row.interval_start_utc, interval_end_utc: row.interval_end_utc,
     interval_seconds: row.interval_seconds, avg_power_w: row.avg_power_w, energy_kwh: row.energy_kwh,

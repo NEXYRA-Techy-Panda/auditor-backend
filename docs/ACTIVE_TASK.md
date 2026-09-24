@@ -1,53 +1,119 @@
 # ACTIVE_TASK — auditor-backend
 
-## Layer
+## Assignment / Layer ID
 
-P023, Agent C — Codex, A5-backend historical energy analytics. Owner: Mohan.
-Exclusive write scope: `auditor-backend`. Starting HEAD:
-`df1ecbd08369d71f88de9cf5f26e6d8fd44e8ebd`, branch `main`.
+P026 — device analysis integration (P022 excess consumption + P024 gradual
+trend). Owner: **Mohan**. Agent: **M-D — FreeBuff**. Exclusive write scope:
+`auditor-backend`.
 
-## Status
+## Ownership transfer (recorded)
 
-- Implementation: completed and pushed. Review: pending.
-- P020 is preserved in `HANDOFF.md` and prior `PROGRESS_LOG.md` entries.
-- Contract and sibling repositories unchanged.
-- Feature commit `d683578106e718a4e1a42f9a29ce796bcb2d2857` was pushed normally
-  to `origin/main`; `git ls-remote` matched local HEAD at publication.
-- Final continuity commit `dec0c164eace26051a010b4ff2aefe113a0e9650` was also
-  pushed normally; remote/local `main` matched and the auditor-backend tree was
-  clean.
+- Previous owner: **Mohan's Codex agent** (P026 was assigned; no completion
+  report was supplied).
+- Current owner: **Mohan | M-D — FreeBuff**. The assignment ID remains P026.
+- Starting state: `main` at `f3b8e2c8dac923957d91e1a55591abc7e03fe67c`
+  (reported deployed baseline), equal to `origin/main`, clean tree. **No P026
+  work existed to resume** — no checkpoint, evidence, route, migration or
+  uncommitted edit in the repository. Nothing was rebuilt or discarded.
+- No other Mohan agent edited this repository during the assignment.
 
-## Completed
+## Scope
 
-- Added `/rooms`, `/devices`, `/timeseries`, and `/weekday-analytics`
-  persisted-data routes; detailed filters, coverage, exact bucket behavior,
-  provenance, pagination and examples are in `AUDITOR_API_EXAMPLES.md` and
-  `P023_HISTORICAL_ANALYTICS_EVIDENCE.md`.
-- Energy comes only from device interval energy, once per stored row. Added
-  explicit expected/covered device-duration reporting, complete/partial/missing
-  labels, null missing-bucket totals, local calendar weekday counts/means,
-  current tariff cost, and synthetic provenance. No interval prorating.
-- Summary now exposes source metadata and `gap_assessment.status` of
-  `not_performed`, retaining compatibility `gaps: []`.
-- Added a synthetic scratch-DB test that exercises the actual app over HTTP,
-  including reference values, gaps, pagination, quantity, timezone/weekday and
-  alignment behavior.
+1. Node integration for `POST /v1/anomalies` (`excess-power-mad-v1`) and
+   `POST /v1/drift` (`gradual-power-trend-v1`) at committed Python `a0a86cc`.
+2. Public persisted jobs and results for the auditor frontend, reusing the
+   existing queue/jobs/findings machinery.
+3. Preserve imports, vacancy analysis, forecasting and analytics unchanged.
 
-## Verification
+## Task status
 
-- Contract 75/75; schema 24/24; typecheck/lint/build pass; tests 28/28.
-- Actual HTTP regressions: import pass (201 then equivalent 200, 0.03 kWh,
-  tariff 10 -> 0.30); analysis P010 pass; forecast P013 pass.
-- P015 existing caps: 100,000 findings, 100,000 warnings, 100,000 evidence
-  intervals per finding. Exceeding a cap fails the job without partial success;
-  result pagination is retrieval-only, maximum 500.
-- No task-owned process remains on 4001/8000; no temporary forecast directory.
-  Full scale upload benchmark was not repeated.
+completed (implementation + tests + real integration + documentation)
+
+## Review status
+
+pending (never self-assigned)
+
+## Completed work
+
+1. `src/analysis/aggregate.ts` — deterministic window-anchored aggregation that
+   emits only contiguous, non-partial, fully-on, single-policy bins with room
+   context and counts every excluded bin by reason.
+2. `src/analysis/detectors.ts` — per-device section planning (finest fitting
+   contract resolution, native pass-through when the stored resolution fits),
+   fixed reference baseline across evaluation batches, bounded sections,
+   drift never split, policy-scope precheck, merged coverage/warnings/exclusions
+   and honest overall status.
+3. `src/analysis/client.ts` — `anomalies()` / `drift()` with envelope, identity,
+   window, device and finding-shape validation; bounded bodies.
+4. `src/analysis/jobs.ts` — `detector` selection on `POST /api/v1/analysis/jobs`
+   with window validation; detector dispatch, progress batches, result and
+   finding persistence via the existing columns (no migration).
+5. `src/routes/analysis.ts` — detector result presentation (no tariff-derived
+   cost) and the new `GET /api/v1/detectors` catalogue.
+6. Tests `test/detectors.test.ts` (8 new; 36/36 total) and the real integration
+   check `scripts/check-detector-http.mjs` (`npm run check:detector-http`).
+7. `.gitattributes` LF rules for the hashed contract paths (was missing).
+8. Documentation: `P026_DEVICE_ANALYSIS_INTEGRATION_EVIDENCE.md`,
+   `AUDITOR_API_EXAMPLES.md`, `HANDOFF.md`, `README.md`, this file and
+   `PROGRESS_LOG.md`.
+
+## Previous task outcome (preserved)
+
+- **P023 (A5-backend historical energy analytics, Codex): completed, review
+  pending.** `/rooms`, `/devices`, `/timeseries`, `/weekday-analytics` with
+  coverage/provenance/pagination; evidence
+  `P023_HISTORICAL_ANALYTICS_EVIDENCE.md`; commits `d683578`, `dec0c16`.
+- **P020 (forecast integration, Codex): completed, review pending.**
+- P026 must not change P023/P020/P015 behaviour; their regression tests pass
+  unchanged in this assignment (36/36 includes all previous suites).
+
+## Verification performed and actual results
+
+- `npm test`: **36 passed, 0 failed** (28 pre-existing + 8 new).
+- `npm run verify:contract`: **75/75**; `npm run validate:schema`: **24/24**.
+- `npm run typecheck` / `npm run lint` (0 errors) / `npm run build`: clean.
+- `npm run check:detector-http`: pass against pinned Python `a0a86cc` on an
+  isolated ephemeral loopback port with a scratch database (7 detector
+  requests, both detector paths, max 1,440 records per section).
+
+## Incomplete edits and uncommitted changes
+
+None outstanding once the committed task work is pushed. Browser-witnessed
+frontend checks are not part of this assignment and remain pending.
+
+## Blockers or unknowns
+
+- Frontend adapter work for the new detector statuses is a separate assignment.
+- Detector accuracy evidence in Python remains synthetic; the numbers recorded
+  here are structural integration results.
+- Pre-existing, unrelated: `scripts/check-analysis-http.mjs` fails on this
+  Windows checkout (zip through GNU tar) and was left unmodified.
 
 ## Exact next action
 
-Exact next action: OpenCode integrates the documented office timeseries,
-room/device breakdown and weekday routes in `auditor-frontend`, displaying
-coverage/provenance and distinguishing full-period from page totals. Concurrent
-frontend changes were observed and left untouched. Stop after P023; review
-remains pending.
+Frontend integration (separate assignment): consume `GET /api/v1/detectors` for
+detector selection, then `POST /api/v1/analysis/jobs` with
+`detector` + `reference_window`/`evaluation_window`, and render `result.status`,
+`result.devices[].status`/`reason`/`assessment_source`,
+`result.aggregation.excluded_device_bins`, warnings and (drift)
+`other_changes` — never as malfunctions, efficiency loss or savings. Stop
+after P026 on the backend side; review remains pending.
+
+## Related-repository dependencies
+
+- energy-ml-service `a0a86cc5d96b16082d8a1d1b911de7a7d1b2474d`
+  (P022 `b17e54b`, P024 `208417e`) — read-only; not modified.
+- Contract 1.0.1 mirrored, read-only; `verify:contract` remains 75/75.
+- Unchanged repositories: auditor-frontend, simulation-frontend,
+  simulation-backend and the parent folder.
+
+## Deployment constraints (reference)
+
+- Public auditor base `https://git-pipeline.metatronhost.in/auditor`; Nginx
+  strips `/auditor` before `/api/v1/...`. Fixed local listener
+  `127.0.0.1:19002` (`PORT` ignored); private Python `127.0.0.1:19003`.
+- Production database
+  `/home/mohan/.config/htop/mohan/HACKATHON/auditor-backend/data/auditor.sqlite`
+  — never used for tests; no migration changes; no Nginx/PM2/webhook edits.
+- A push may trigger deployment; the push result and any observed deployment
+  outcome are recorded in the P026 return report only if actually observed.

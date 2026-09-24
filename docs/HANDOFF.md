@@ -1,5 +1,65 @@
 # HANDOFF — auditor-backend
 
+## P026 device-detector addendum (2026-09-25; implemented, review pending)
+
+- **Ownership transfer:** P026 was previously assigned to Mohan's **Codex**
+  agent and no completion report was supplied. Current owner **Mohan | M-D —
+  FreeBuff**; assignment ID unchanged. No P026 work existed to resume (clean
+  tree at `f3b8e2c`, no P026 trace anywhere), so nothing was rebuilt or
+  discarded. Exclusive write scope was `auditor-backend` only.
+- Wires Python's additive detectors into the existing persisted job machinery:
+  `POST /api/v1/analysis/jobs` accepts
+  `detector: "excess_consumption"` (P022 `/v1/anomalies`,
+  `excess-power-mad-v1`) or `detector: "gradual_trend"` (P024 `/v1/drift`,
+  `gradual-power-trend-v1`) with explicit `reference_window` and
+  `evaluation_window`; `"vacancy"` (or no `detector`) keeps the exact previous
+  request/behaviour. New `GET /api/v1/detectors` catalogue; `GET
+  /api/v1/analysis/jobs/:id` adds a `detector` identity block and returns the
+  detector result with paginated findings, coverage, per-device statuses,
+  warnings, exclusions, aggregation and (drift) `other_changes`.
+- **No migration**: detector jobs reuse `analysis_jobs`/`findings`
+  (`job_type='analysis'`, `method='rule'`, `method_version=<detector
+  version>`). Queue bounds, progress batches, failure mapping,
+  `JOB_INTERRUPTED` recovery and job-prefixed finding ids are P015/P020's.
+- **Sections:** selected per device from persisted readings only. The finest
+  contract resolution that fits Python's 2,000 device/2,000 room records per
+  section is used; the stored resolution is sent **unchanged** when it fits,
+  and deterministic aggregation (window-anchored bins, fully-on, contiguous,
+  non-partial, single policy version, room context present) is applied only
+  when it does not. Excluded bins are counted by reason under
+  `aggregation.excluded_device_bins`; nothing is zero-filled, divided by
+  `on_fraction`, multiplied by `quantity` or silently dropped. Room context is
+  only sent at a device interval start.
+- **Detectors:** excess consumption keeps one fixed reference section per
+  device across evaluation batches (Python never refits from evaluation data)
+  and may split the evaluation at the bound; gradual trend is never split,
+  because Python cannot stitch temporal support — an oversized evaluation is
+  reported as not assessed with a reason and a recommendation. A referenced
+  policy that is not device-scoped is a precheck failure, so no invalid call is
+  made. `unsupported_aggregation` is the auditor's own not-assessed state and is
+  never presented as evaluated-no-findings; `model_available: false` does not
+  block either detector.
+- **Semantics:** detector findings/magnitudes are never priced (no cost field),
+  never added to vacancy avoidable-energy totals, and a tariff change never
+  reruns a detector. Thresholds, reference support, assumptions, method/version
+  and suggested actions are stored and exposed as returned.
+- **Verification:** `npm test` **36/36** (28 pre-existing + 8 new), contract
+  **75/75**, schema **24/24**, typecheck/lint/build 0. Real integration
+  `npm run check:detector-http` against pinned committed Python `a0a86cc`
+  (isolated ephemeral loopback port, scratch DB): excess-consumption finding at
+  1000 W vs 600 W median (threshold 660 W, 9.6 kWh above baseline, 288 flagged
+  intervals) plus `evaluated_no_deviation` and `insufficient_reference`; drift
+  trend +20 W/day (+50 %, 600 W reference level) plus
+  `evaluated_no_gradual_trend`, `abrupt_level_change` as an observation and
+  `insufficient_history`. Largest submitted section 1,440 records (native
+  pass-through). Details: [P026 evidence](P026_DEVICE_ANALYSIS_INTEGRATION_EVIDENCE.md).
+- `.gitattributes` was **missing** here; the two K002 LF rules were added
+  (no verifier, manifest or contract content change; verifier stays 75/75).
+- Not implemented / unverified: browser-witnessed detector UI, frontend adapter
+  work for the new statuses, and any detector-result pricing (deliberately
+  none). Pre-existing and untouched: `scripts/check-analysis-http.mjs` fails on
+  this Windows checkout (zip through GNU tar); the new check uses `--format=tar`.
+
 ## P023 A5-backend addendum (2026-09-24; implemented, review pending)
 
 - Adds persisted-reading endpoints `GET /api/v1/imports/:id/rooms`,

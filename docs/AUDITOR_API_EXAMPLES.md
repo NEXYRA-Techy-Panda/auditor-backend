@@ -351,6 +351,122 @@ with `INSUFFICIENT_DATA`, rather than being truncated. Partial imports expose
 One job is also capped at 100,000 merged findings; exceeding that bound fails
 the job with `INSUFFICIENT_DATA`, without returning a partial result as complete.
 
+## Device detectors (P026)
+
+`GET /api/v1/detectors` lists every detector the analysis command accepts.
+`POST /api/v1/analysis/jobs` selects one with an additive `detector` field:
+`"vacancy"` (default, unchanged), `"excess_consumption"` (Python P022
+`/v1/anomalies`, `excess-power-mad-v1`) or `"gradual_trend"` (Python P024
+`/v1/drift`, `gradual-power-trend-v1`).
+
+```json
+{
+  "dataset_id": "auditor-generated-id",
+  "detector": "excess_consumption",
+  "reference_window": { "start_utc": "2026-01-01T00:00:00Z", "end_utc": "2026-01-03T00:00:00Z" },
+  "evaluation_window": { "start_utc": "2026-01-03T00:00:00Z", "end_utc": "2026-01-05T00:00:00Z" }
+}
+```
+
+```json
+{
+  "data": { "job_id": "analysis-job-id", "status": "queued", "detector": "excess_consumption" },
+  "meta": { "request_id": "<request-id>" }
+}
+```
+
+Reply `202`; poll `GET /api/v1/analysis/jobs/:id`. The reference window must end
+at or before the evaluation window starts, both must lie inside the dataset
+export range and align to imported interval boundaries. `422` names the
+window/field that failed, `404` an unknown dataset, `503` a full queue.
+
+Completed detector jobs return the same envelope as a vacancy job plus a
+`detector` identity block:
+
+```json
+{
+  "data": {
+    "job_id": "analysis-job-id", "dataset_id": "auditor-generated-id", "status": "completed",
+    "method": "rule", "method_version": "excess-power-mad-v1",
+    "requested_range": { "start_utc": "2026-01-03T00:00:00Z", "end_utc": "2026-01-05T00:00:00Z" },
+    "detector": { "id": "excess_consumption", "label": "Excess-consumption deviation versus an earlier comparable reference",
+      "method": "rule", "method_version": "excess-power-mad-v1", "technique": "robust_median_mad",
+      "finding_type": "excess_consumption_deviation", "request_format": "excess-power-request-v1" },
+    "windows": {
+      "reference": { "start_utc": "2026-01-01T00:00:00Z", "end_utc": "2026-01-03T00:00:00Z" },
+      "evaluation": { "start_utc": "2026-01-03T00:00:00Z", "end_utc": "2026-01-05T00:00:00Z" }
+    },
+    "result": {
+      "status": "findings_detected", "synthetic": true, "synthetic_label": "synthetic fixture (not real building data)",
+      "coverage": { "start_utc": "2026-01-03T00:00:00Z", "end_utc": "2026-01-05T00:00:00Z",
+        "devices": 1, "unsupported_devices": 0, "detector_calls": 1, "max_section_records": 2000 },
+      "detector_coverage": { "evaluation_device_intervals": 576, "evaluated": 576, "flagged": 288,
+        "insufficient_reference": 0, "excluded": {}, "reference_device_intervals": 576,
+        "reference_usable": 576, "reference_excluded": {} },
+      "devices": [{ "device_id": "light-a", "room_id": "room-a", "device_type": "lighting",
+        "status": "deviation_found", "assessment_source": "detector", "comparison": "own fully-on reference",
+        "reference": { "usable_intervals": 576, "excluded": {}, "baselines_by_interval_seconds": { "300": { "support": 576, "median_w": 600, "threshold_w": 660 } } },
+        "evaluation": { "evaluated": 576, "flagged": 288, "insufficient_reference": 0, "insufficient_reasons": {}, "excluded": {} } }],
+      "aggregation": { "stored_interval_seconds": 60, "max_section_records": 2000,
+        "resolutions_by_device": { "light-a": 300 },
+        "emitted_bins_by_device": { "light-a": 1152 },
+        "excluded_device_bins": { "light-a": { "mixed_duty_or_off": 12 } } },
+      "warnings": [
+        { "code": "NOT_A_DIAGNOSIS", "message": "Findings are statistical excess-consumption deviations ..." },
+        { "code": "AGGREGATED_INTERVALS", "message": "Stored readings were aggregated onto requested contract intervals ..." },
+        { "code": "NOT_AVOIDABLE_SAVINGS", "message": "energy_above_baseline_kwh is energy above the reference median over flagged intervals, not a guaranteed avoidable amount ..." }],
+      "exclusions": [], "totals": { "findings": 1, "other_changes": 0, "exclusions_listed": 0, "exclusions_total": 12 },
+      "findings": [{
+        "finding_id": "excess_consumption_deviation:light-a:2026-01-04T00:00:00Z",
+        "finding_type": "excess_consumption_deviation", "device_id": "light-a", "room_id": "room-a",
+        "window_start_utc": "2026-01-04T00:00:00Z", "window_end_utc": "2026-01-05T00:00:00Z", "intervals": 288,
+        "observed": { "value": 1000, "unit": "W" }, "expected": { "value": 600, "unit": "W" },
+        "threshold_w": 660, "reference_support": 576,
+        "deviation": { "watts": 400, "ratio": 1.67 },
+        "energy_above_baseline_kwh": 9.6,
+        "energy_note": "Energy above the reference median over the flagged intervals; NOT a guaranteed avoidable amount.",
+        "method": "rule", "technique": "robust_median_mad", "detector_version": "excess-power-mad-v1",
+        "suggested_action": "Check the Lighting A in the open workspace: confirm its schedule/manual state ...",
+        "detector_id": "excess_consumption"
+      }],
+      "findings_pagination": { "page": 1, "page_size": 100, "total": 1 },
+      "limitations": ["Detector output is a statistical deviation under the stated comparability rules; it is not a confirmed malfunction and not an efficiency diagnosis."]
+    },
+    "created_at": "<utc>", "completed_at": "<utc>"
+  },
+  "meta": { "request_id": "<request-id>" }
+}
+```
+
+`gradual_trend` jobs return the same shape with
+`method_version: "gradual-power-trend-v1"`, findings of type
+`sustained_upward_power_trend` (with `trend`, `persistence`, `support` and
+`assessed_period`), and an additional `other_changes` list for
+`abrupt_level_change`, `upward_change_not_sustained` and
+`level_offset_without_trend` observations, which are descriptive and never
+findings.
+
+Rules the frontend can rely on:
+
+- `result.status` is one of `findings_detected`,
+  `evaluated_no_deviation` / `evaluated_no_gradual_trend`,
+  `insufficient_reference` / `insufficient_history`, `unsupported_context`,
+  `unsupported_aggregation`, `no_comparable_observations`. **Not assessed is
+  never reported as evaluated with no findings.**
+- Every device entry carries `assessment_source`: `detector` (Python assessed
+  it) or `auditor_precheck` (the auditor could not build a valid request and
+  states the reason).
+- When the stored resolution fits the 2,000-record section bound the records
+  are sent unchanged; otherwise they are aggregated onto a requested contract
+  interval and every excluded bin is counted under
+  `aggregation.excluded_device_bins` (`missing_device_readings`,
+  `partial_or_incomplete_readings`, `duty_unknown`, `mixed_duty_or_off`,
+  `policy_change`, `missing_room_context`).
+- Detector results are **not** priced: no cost field is added, a tariff change
+  never reruns a detector, and `energy_above_baseline_kwh` / trend magnitudes
+  are never added to vacancy avoidable-energy totals.
+- Python is still called only by this backend; the browser never calls Python.
+
 ## Forecasts (P020)
 
 The contract defines `POST /api/v1/forecasts` with `{ "dataset_id", "horizon" }`.

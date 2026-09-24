@@ -9,7 +9,7 @@ project.
 - **Owner**: Mohan.
 - **Fixed port**: `19002`. Private Python service: `http://127.0.0.1:19003`.
 
-## Status (P023 A5-backend, 2026-09-24)
+## Status (P026, 2026-09-25)
 
 CSV and canonical JSON imports validate and persist through the auditor's
 private SQLite database. Persisted datasets can now be analyzed through
@@ -24,6 +24,21 @@ available through persisted forecast jobs at `POST /api/v1/forecasts` and
 Historical room/device breakdowns, exact-bucket office timeseries, and
 calendar-weekday analysis use persisted device interval energy only. See
 [P023 historical analytics](docs/P023_HISTORICAL_ANALYTICS_EVIDENCE.md).
+
+P026 wires Python's two additive detectors into the same persisted job
+machinery: `POST /api/v1/analysis/jobs` accepts
+`detector: "excess_consumption"` (P022 `/v1/anomalies`,
+`excess-power-mad-v1`) or `detector: "gradual_trend"` (P024 `/v1/drift`,
+`gradual-power-trend-v1`) with an explicit earlier `reference_window` and a
+later `evaluation_window`, and `GET /api/v1/detectors` lists what each detector
+needs. Both run while `model_available` is false. The auditor selects the
+sections from persisted readings, sends them unchanged when they fit Python's
+2,000-record bound and otherwise aggregates onto requested contract intervals
+without changing duty, policy or context semantics, keeping each device's
+reference baseline fixed across evaluation batches. Detector results are
+deviations, not malfunctions or savings: they are never priced and never added
+to vacancy avoidable-energy totals. See
+[P026 device analysis](docs/P026_DEVICE_ANALYSIS_INTEGRATION_EVIDENCE.md).
 
 ## Setup and commands (Windows PowerShell or Linux shell; Node >= 24, npm)
 
@@ -40,6 +55,7 @@ npm run validate:schema    # formal JSON Schema 2020-12 validation (Ajv)
 npm run check:import-scale # generated 31-day CSV over HTTP on port 19002
 npm run check:analysis-http # isolated P010 snapshot + auditor scratch DB
 npm run check:forecast-http # isolated P013 snapshot + generated history + scratch DB
+npm run check:detector-http # isolated P022/P024 snapshot + detector jobs on a scratch DB
 ```
 
 The database path defaults to `./data/auditor.sqlite` and can be overridden

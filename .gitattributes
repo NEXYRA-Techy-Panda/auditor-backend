@@ -1,0 +1,12 @@
+# Contract checkout portability (P026, Agent M-D — FreeBuff).
+#
+# Git stores the canonical contract blobs with LF endings, and the verification
+# script hashes those files as RAW BYTES, so a clone whose Git configuration
+# converts LF to CRLF on checkout fails the manifest hash checks even though the
+# content is byte-identical apart from the line separator. Pinning LF for
+# exactly the hashed paths keeps checkout portable without touching contract
+# semantics, the manifest, or any verifier check. This is repository checkout
+# configuration, not a contract version change; the same two rules are already
+# committed in simulation-frontend and simulation-backend (K002).
+contracts/v1/** text eol=lf
+scripts/verify-contract.mjs text eol=lf

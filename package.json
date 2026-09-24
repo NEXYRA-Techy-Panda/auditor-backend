@@ -20,7 +20,8 @@
     "check:import-http": "node scripts/check-import-http.mjs",
     "check:import-scale": "node scripts/check-import-scale.mjs",
     "check:analysis-http": "npm run build && node scripts/check-analysis-http.mjs",
-    "check:forecast-http": "npm run build && node scripts/check-forecast-http.mjs"
+    "check:forecast-http": "npm run build && node scripts/check-forecast-http.mjs",
+    "check:detector-http": "npm run build && node scripts/check-detector-http.mjs"
   },
   "dependencies": {
     "ajv": "8.20.0",

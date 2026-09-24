@@ -418,3 +418,81 @@ correction entry; do not rewrite history.
   Exact next action: OpenCode integrates the
   documented historical analytics into auditor-frontend; review pending, stop
   after P023.
+
+---
+
+## 2026-09-25 — P026 device analysis integration completed (Agent M-D — FreeBuff)
+
+- Layer ID: P026 — Node integration for Python's P022 `POST /v1/anomalies`
+  (`excess-power-mad-v1`) and P024 `POST /v1/drift`
+  (`gradual-power-trend-v1`). Developer Mohan; agent **M-D — FreeBuff**;
+  exclusive write scope `auditor-backend`. Progress: Mohan assignment 25 /
+  approximately 29 planned; approximately 4 further batches.
+- **Ownership transfer:** previously assigned to Mohan's Codex agent with no
+  completion report. Starting HEAD `f3b8e2c8dac923957d91e1a55591abc7e03fe67c`
+  (reported deployed baseline) == `origin/main`, clean tree, and **no P026 work
+  existed to resume** (no P026 trace, route, migration or uncommitted edit).
+  Nothing was rebuilt or discarded; other repositories and the parent were not
+  touched and no other agent was editing this repository.
+- Python interfaces read from committed source only: deployed
+  `a0a86cc5d96b16082d8a1d1b911de7a7d1b2474d` already contains P022 `b17e54b`
+  and P024 `208417e`, so no Python change was needed.
+- Added `detector` selection to `POST /api/v1/analysis/jobs` (`vacancy` default
+  unchanged; `excess_consumption` / `gradual_trend` with explicit, validated
+  `reference_window` + `evaluation_window`), detector presentation plus a
+  `detector` identity block on `GET /api/v1/analysis/jobs/:id`, and the new
+  `GET /api/v1/detectors` catalogue. Queue, progress batches, failure mapping,
+  `JOB_INTERRUPTED` recovery and the findings table are reused unchanged (no
+  migration; `job_type='analysis'`, `method='rule'`,
+  `method_version=<detector version>`).
+- Section selection sends stored readings unchanged when they fit Python's
+  2,000 device/2,000 room records per section and otherwise aggregates onto the
+  finest fitting contract interval: contiguous, non-partial, fully-on,
+  single-policy bins with room context only. Excluded bins are counted by
+  reason under `aggregation.excluded_device_bins`; nothing is zero-filled,
+  divided by `on_fraction`, multiplied by `quantity` or dropped silently. Room
+  context is only sent at a device interval start.
+- Excess consumption keeps one fixed reference section per device across
+  evaluation batches and may split the evaluation; gradual trend never splits
+  (Python cannot stitch support) and reports an oversized evaluation as not
+  assessed with a reason. A non-device-scoped referenced policy is a precheck
+  failure, so no invalid request is sent. `unsupported_aggregation` is the
+  auditor's not-assessed state and is never treated as evaluated-no-findings.
+  `model_available: false` blocks neither detector. Detector results are never
+  priced, never added to vacancy avoidable-energy totals, and a tariff change
+  never reruns a detector.
+- Checks: `npm test` **36/36** (28 pre-existing + 8 new in
+  `test/detectors.test.ts`), `verify:contract` **75/75**, `validate:schema`
+  **24/24**, typecheck/lint/build 0. Real integration
+  `npm run check:detector-http` (pinned `a0a86cc` exported with `git archive`
+  into temp, existing interpreter, isolated ephemeral loopback port, scratch
+  DB): excess consumption 1000 W vs 600 W median, threshold 660 W,
+  `energy_above_baseline_kwh` 9.6, 288 flagged intervals, 300 s aggregation;
+  `evaluated_no_deviation` and `insufficient_reference` cases; drift
+  `sustained_upward_power_trend` +20 W/day (+50 %, 600 W reference level, 8
+  reference / 16 evaluation days); `evaluated_no_gradual_trend`,
+  `abrupt_level_change` as an observation, `insufficient_history`. Largest
+  submitted section 1,440 records (native pass-through), 7 detector requests.
+- `.gitattributes` was missing here; the two K002 LF rules were added for the
+  hashed contract paths. No verifier/manifest/contract content change and no
+  global Git configuration change (`verify:contract` stays 75/75).
+- Files: created `src/analysis/aggregate.ts`, `src/analysis/detectors.ts`,
+  `test/detectors.test.ts`, `scripts/check-detector-http.mjs`,
+  `docs/P026_DEVICE_ANALYSIS_INTEGRATION_EVIDENCE.md`, `.gitattributes`;
+  updated `src/analysis/client.ts`, `src/analysis/batches.ts`,
+  `src/analysis/jobs.ts`, `src/routes/analysis.ts`, `package.json`, `README.md`,
+  `docs/HANDOFF.md`, `docs/ACTIVE_TASK.md`, `docs/AUDITOR_API_EXAMPLES.md`,
+  this log. No database, environment, build output or temporary file committed.
+- Processes: the isolated Python instance and auditor server used by
+  `check:detector-http` were stopped; no task-owned process or temp directory
+  remains. Pre-existing and unmodified: `scripts/check-analysis-http.mjs` fails
+  on this Windows checkout (zip through GNU tar).
+- Review status: pending (no self-assigned approval). Deployment was not
+  triggered manually; the push result and any observed deployment outcome are
+  recorded in the P026 return report.
+- Exact next action: frontend integration in `auditor-frontend` (separate
+  assignment) — consume `GET /api/v1/detectors`, submit
+  `detector` + `reference_window`/`evaluation_window`, and present status,
+  per-device `assessment_source`/`reason`, excluded bins, warnings and drift
+  `other_changes` without malfunctions, efficiency loss or savings claims.
+  Stop after P026 on the backend side.
