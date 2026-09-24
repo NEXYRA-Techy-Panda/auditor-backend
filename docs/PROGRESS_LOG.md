@@ -353,14 +353,12 @@ correction entry; do not rewrite history.
   `7f71363aa9361e67a0cb2815b98aee79b0708cf9`: 672 observed hours, full 720-point
   November, 10.8 kWh; ₹10 cost 108 within `1e-9`; insufficient-history case
   failed honestly. P013 reported `model_available:false`.
-- Exact next action: commit and push normally, verify local/remote `main`, then
-  review pending; stop after P020.
+- Exact next action: frontend forecast submit/poll/result display in a separate task; review pending; stop after P020.
 
 ## 2026-09-24 — P020 M3 published
 
 - Feature commit `a7129f23873df9481fea249021d6a2599bcfd37d` was pushed normally
-  to `origin/main` (no force). At verification, `git ls-remote` matched local
-  `main`; a final continuity-only doc commit follows.
+  to `origin/main` (no force). Final continuity commit `169ae814cb4e8d09b49606aaa8523193aa7b4b53` was also pushed; the remote matched local `main`.
 - No contract, parent, or simulator repository was changed. The P013 source was
   used from pinned commit `7f71363aa9361e67a0cb2815b98aee79b0708cf9`; the
   Python sibling had separate concurrent work, which was left untouched.

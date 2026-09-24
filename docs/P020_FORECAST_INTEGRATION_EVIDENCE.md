@@ -167,8 +167,7 @@ in [AUDITOR_API_EXAMPLES.md](AUDITOR_API_EXAMPLES.md).
 
 Feature implementation commit `a7129f23873df9481fea249021d6a2599bcfd37d` was
 pushed normally to `origin/main` without force. `git ls-remote` matched local
-`main` at verification; the final continuity-only documentation commit is
-recorded below after push. No task-owned process, temporary source copy or
+`main` at verification. Continuity-only documentation commit `169ae814cb4e8d09b49606aaa8523193aa7b4b53` was pushed normally. No task-owned process, temporary source copy or
 scratch database remains. Ports 4001 and 8000 have no listener. Review remains
 pending. Exact next frontend action: implement the above forecast
 submit/poll/result display in `auditor-frontend` as a separate task.
