@@ -261,3 +261,112 @@ with `INSUFFICIENT_DATA`, rather than being truncated. Partial imports expose
 `coverage.complete: false`; gaps break vacancy continuity.
 One job is also capped at 100,000 merged findings; exceeding that bound fails
 the job with `INSUFFICIENT_DATA`, without returning a partial result as complete.
+
+## Forecasts (P020)
+
+The contract defines `POST /api/v1/forecasts` with `{ "dataset_id", "horizon" }`.
+Because forecast construction and the Python call run as a persisted background
+job, this backend returns an additive `202` status reference. The forecast ID
+and job ID are the same UUID. Poll `GET /api/v1/forecasts/{forecast_id}` for
+`queued`, `running`, `completed`, or `failed`; completed responses include the
+contract forecast fields. Existing import and analysis routes are unchanged.
+
+```http
+POST /api/v1/forecasts
+Content-Type: application/json
+
+{"dataset_id":"<dataset-id>","horizon":"next_calendar_month"}
+```
+
+Optional `origin_utc` selects an explicit Asia/Kolkata local-hour boundary
+that is at or after the imported dataset end. When omitted, it defaults to the
+first such boundary at or after the dataset's available end; it never uses the
+server's current date. Horizons are `next_24h`, `next_7d`, and
+`next_calendar_month`.
+
+```json
+{
+  "data": {
+    "forecast_id": "<uuid>", "job_id": "<uuid>", "status": "queued",
+    "horizon": "next_calendar_month", "origin_utc": "2026-10-19T03:30:00Z",
+    "synthetic": true,
+    "synthetic_label": "Generated deterministic hourly fixture; not measured."
+  },
+  "meta": { "request_id": "<request-id>" }
+}
+```
+
+```http
+GET /api/v1/forecasts/<uuid>
+```
+
+Completed response (the `points` array contains every hourly point through the
+exclusive horizon end):
+
+```json
+{
+  "data": {
+    "forecast_id": "<uuid>", "job_id": "<uuid>", "dataset_id": "<dataset-id>",
+    "status": "completed", "horizon": "next_calendar_month",
+    "origin_utc": "2026-10-19T03:30:00Z",
+    "method": "statistical_baseline", "baseline_version": "hourly-profile-median-v1",
+    "model_version": null, "timezone": "Asia/Kolkata",
+    "horizon_start_utc": "2026-10-31T18:30:00Z",
+    "horizon_end_utc": "2026-11-30T18:30:00Z",
+    "points": [
+      {"start_utc":"2026-10-31T18:30:00Z","energy_kwh":0.015,"basis":"weekday_hour","support":4},
+      {"start_utc":"2026-10-31T19:30:00Z","energy_kwh":0.015,"basis":"weekday_hour","support":4}
+    ],
+    "total_energy_kwh": 10.8, "uncertainty": "unavailable",
+    "forecast_cost_inr": null, "tariff_inr_per_kwh": null,
+    "history_coverage": {
+      "observed_hours": 672, "maximum_history_hours": 2160,
+      "candidate_hours": 672, "observed_complete_hours": 672,
+      "incomplete_hours": 0, "trailing_incomplete_hours": 0,
+      "incomplete_hours_by_reason": {}, "gap_before_origin_hours": 0
+    },
+    "office_hours_policy": {"policy_id":"pol-hours","version":2,"effective_from_utc":"2026-10-19T03:30:00Z"},
+    "synthetic": true, "synthetic_label": "Generated deterministic hourly fixture; not measured.",
+    "warnings": [{"code":"INPUTS_NOT_USED","message":"..."}],
+    "limitations": ["Statistical profile baseline, not a trained model; no accuracy claim is made for this building."]
+  },
+  "meta": { "request_id": "<request-id>" }
+}
+```
+
+Errors after queue acceptance are returned as `status: "failed"` with the
+Python/backend error code and safe message. For example, too little history
+returns `INSUFFICIENT_DATA`; no all-zero forecast is substituted. Unknown
+datasets and invalid horizons/origins fail before acceptance. Unsupported
+building timezones return `UNSUPPORTED_INPUT`.
+
+The auditor uses `Asia/Kolkata` and the office-hours policy effective at the
+origin (latest `effective_from_utc` not later than the origin). It sends that
+real policy as `future_assumptions.schedule`; no environment/weather or
+occupancy assumptions are invented. P013 accepts an optional schedule policy
+and optional environment `{ "avg_temp_c": -30..60, "avg_rh_pct": 0..100 }`;
+both are recorded but do not affect its baseline. It also accepts optional
+`model.version`, which must be `hourly-profile-median-v1`. The backend sends
+that version explicitly and accepts the baseline while `model_available` is
+false. Python requires 168, 336, or 672 observed hours for the respective
+horizons plus supported weekday/day-class/hour profiles.
+
+History uses stored per-device `energy_kwh`. Each hour is included only when
+every expected device has exact, non-overlapping coverage of the entire local
+hour. Device energy is summed once; `quantity` and room metadata do not
+multiply it. Partial source intervals can join an hour only when their exact
+union covers it. Crossing-hour intervals are omitted and reported because
+their energy cannot be assigned exactly. Missing or overlapping coverage
+omits the office hour; history is never zero-filled or prorated. The latest
+2,160 candidate hours are considered. `history_coverage` reports omitted
+hours, reasons, trailing incomplete hours, and the gap to origin. Python's own
+`MISSING_HOURS`, `STALE_HISTORY`, and `GAP_BEFORE_HORIZON` warnings are retained.
+The next calendar month remains the complete local month after the month
+containing the origin, not a rolling 30-day interval.
+
+Forecast energy remains immutable. `forecast_cost_inr` is calculated on each
+read using the current flat tariff: unset tariff gives `null`, zero tariff
+gives `0`. Tariff edits never call Python again. This is forecast cost, not
+avoidable cost or savings. Synthetic provenance is copied from the imported
+dataset; absent provenance is not labeled measured. No trained model,
+prediction interval, or building-specific accuracy claim is returned.

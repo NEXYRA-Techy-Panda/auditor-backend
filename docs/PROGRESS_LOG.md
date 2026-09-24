@@ -317,3 +317,41 @@ correction entry; do not rewrite history.
   to `origin/main`; review pending. Exact commit hashes are recorded in the
   final evidence note.
 - Exact next action: review pending; stop after P015.
+
+## 2026-09-24 — P020 M3 started (Agent C — Codex)
+
+- Starting auditor HEAD `32d88beabc7d0e1d1a3fb7d26ae74117b4cce6ca` was clean
+  on `main`, equal to `origin/main`. No applicable `AGENTS.md` found.
+- Read P006/P015 continuity and evidence, auditor APIs and SQLite/jobs/client,
+  shared forecast contract, and committed P013 source/evidence at
+  `7f71363aa9361e67a0cb2815b98aee79b0708cf9`. Python worktree is unchanged.
+- P015 evidence audit confirmed reference/cost, partition/grace, context
+  ownership, missing-room gap, policy change and restart checks. Added tests
+  for exact 100,000 result caps and fail-closed overflow; pagination is
+  separately verified as retrieval only. Details are in the P015 evidence
+  addendum; no architectural approval is claimed.
+- Started the P020 implementation in `auditor-backend` only. Next: finish
+  focused forecast work, run pinned P013 HTTP against scratch SQLite, document
+  actual results, run regressions, and publish normally.
+
+## 2026-09-24 — P020 M3 implementation complete (Agent C — Codex)
+
+- Extended the P015 single persisted job queue for forecast jobs; added SQLite
+  migration v3, P013 forecast client, complete-hour history builder, forecast
+  validation/persistence, API routes and frontend examples. Import/analysis
+  APIs and shared contract files are unchanged.
+- Exact per-device energy aggregation on Asia/Kolkata hours; gaps, overlaps and
+  crossing-hour intervals are excluded and reported. The latest 2,160 slots
+  are considered. Origin defaults from imported data end; actual office policy
+  at origin is sent with no invented future weather or occupancy.
+- P015 evidence gap is closed with explicit tests for the 100,000 finding,
+  warning and per-finding evidence caps and `INSUFFICIENT_DATA` fail-closed
+  behavior; response pagination is distinguished from computation/storage
+  bounds. Full addendum in P015 evidence.
+- Final checks: contract 75/75, schema 24/24, tests 27/27, typecheck, lint,
+  build and import HTTP pass. P013 real HTTP check against
+  `7f71363aa9361e67a0cb2815b98aee79b0708cf9`: 672 observed hours, full 720-point
+  November, 10.8 kWh; ₹10 cost 108 within `1e-9`; insufficient-history case
+  failed honestly. P013 reported `model_available:false`.
+- Exact next action: commit and push normally, verify local/remote `main`, then
+  review pending; stop after P020.

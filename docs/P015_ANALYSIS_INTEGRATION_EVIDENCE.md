@@ -153,3 +153,39 @@ Feature implementation commit:
 remains running. The continuity publication commit
 `c270b2f89f88eac837044c76179f4631f21667a4` was pushed normally; remote
 `refs/heads/main` matched local HEAD at verification. Review remains pending.
+
+## P015 correctness addendum (verified during P020 startup)
+
+Evidence already present in `scripts/check-analysis-http.mjs` and
+`test/analysis.test.ts`:
+
+- Actual P010 HTTP reference result was one `light-a` finding at **0.01 kWh**;
+  `fridge-b` was excluded as always-on. After the tariff was set to
+  **₹10/kWh**, cost was **₹0.10** avoidable and **₹0.30** imported energy.
+- The generated 1,005-minute case crossed the 1,000-owned-row batch boundary.
+  It used 120-second and then 300-second grace policies. The 1,000-row and
+  317-row partitions had identical findings/energy/warnings/exclusions/coverage;
+  the merged estimate was `10.01999999999983` kWh, within `1e-9` of **10.02**.
+  Batch code admits evidence only where the device interval start is owned, so
+  repeated context rows do not contribute energy a second time.
+- The merged finding's `evidence.policy_refs` contained both
+  `pol-light-a:1` and `pol-light-a:2`. Removing the room history row at minute
+  500 made coverage incomplete and split the finding at the gap; the unsupported
+  interval was not bridged or counted.
+- Existing startup recovery test marks both queued and running analysis jobs
+  failed with `JOB_INTERRUPTED` and stores no successful result.
+- Exact production computation/storage caps are **100,000 merged findings per
+  job**, **100,000 distinct merged warnings per job**, and **100,000 evidence
+  intervals per merged finding**. P020 added `P015 result caps are 100,000 and
+  overflow fails jobs without partial success`: it asserts those exact defaults,
+  injects a zero test limit independently for each guard, then verifies the job
+  fails `INSUFFICIENT_DATA`, with zero persisted findings and no result. This
+  tests each overflow path without generating 100,001 rows. Production defaults
+  remain 100,000.
+- Response pagination is retrieval-only: `page_size` is capped at 500. The
+  lifecycle test reads page 1 (one finding) and page 2 (no items) while both
+  report persisted total 1. Pagination does not change computation/storage caps
+  or imply discarded findings; a cap overflow fails before completion.
+
+This addendum closes the documented P015 evidence gap; it is evidence reporting,
+not an architectural approval of P015.

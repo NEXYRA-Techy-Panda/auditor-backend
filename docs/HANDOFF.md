@@ -1,5 +1,36 @@
 # HANDOFF — auditor-backend
 
+## P020 M3 addendum (2026-09-24; implemented, publication pending, review pending)
+
+- Adds `POST /api/v1/forecasts` and `GET /api/v1/forecasts/:id`. The POST
+  returns 202 with a forecast/job ID; the GET reports queued/running/completed/
+  failed and completed contract forecast fields. This additive polling shape
+  is documented in `AUDITOR_API_EXAMPLES.md`; import and analysis routes remain
+  intact.
+- Forecasts share the P015 persisted job queue and one worker. SQLite migration
+  v3 adds the forecast job type and hourly result fields to the existing
+  `forecast_records`; hourly predictions, totals, request assumptions, result,
+  warnings, limitations, coverage, method and provenance persist.
+- Reads only stored per-device `energy_kwh`; includes each office hour only
+  when every expected device has complete, non-overlapping coverage. Exact
+  partial-interval unions are usable; crossing-hour or overlapping intervals
+  are omitted with reasons. No quantity multiplication, room-energy sum,
+  prorating, or missing-hour zero fill.
+- History is limited to the latest 2,160 local-hour slots. Default origin is
+  the first Asia/Kolkata local-hour boundary at/after the dataset end. Calendar
+  and real schedule assumptions come from the office-hours policy effective
+  at origin; no future weather or occupancy is invented.
+- P013 `hourly-profile-median-v1` runs while no trained model is available.
+  Next-calendar-month boundaries remain the complete next local month. Python
+  errors are retained as failed jobs; totals and points are validated before
+  completion.
+- Forecast energy is persisted independently of tariff. Current tariff cost
+  is calculated on reads (`null` when unset, zero when rate zero); tariff edits
+  never rerun Python. Synthetic provenance is copied when present.
+- Full checks and pinned P013 HTTP integration passed. Exact next action:
+  publish the audited changes normally and verify remote `main`; then review
+  pending, stop after P020.
+
 ## P015 F4/M2 addendum (2026-09-24; implemented and published, review pending)
 
 - Adds `POST /api/v1/analysis/jobs` and `GET /api/v1/analysis/jobs/:id`.

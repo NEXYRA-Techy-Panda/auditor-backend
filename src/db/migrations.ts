@@ -198,6 +198,24 @@ const migrations: Migration[] = [{
     CREATE INDEX analysis_jobs_status_idx ON analysis_jobs(status, created_at);
     CREATE INDEX findings_job_idx ON findings(job_id, finding_id);
   `,
+}, {
+  version: 3,
+  name: 'forecast_jobs_and_hourly_results',
+  sql: `
+    ALTER TABLE analysis_jobs ADD COLUMN job_type TEXT NOT NULL DEFAULT 'analysis'
+      CHECK (job_type IN ('analysis','forecast'));
+    ALTER TABLE forecast_records ADD COLUMN horizon TEXT;
+    ALTER TABLE forecast_records ADD COLUMN origin_utc TEXT;
+    ALTER TABLE forecast_records ADD COLUMN method TEXT;
+    ALTER TABLE forecast_records ADD COLUMN baseline_version TEXT;
+    ALTER TABLE forecast_records ADD COLUMN model_version TEXT;
+    ALTER TABLE forecast_records ADD COLUMN timezone TEXT;
+    ALTER TABLE forecast_records ADD COLUMN synthetic INTEGER CHECK (synthetic IS NULL OR synthetic IN (0,1));
+    ALTER TABLE forecast_records ADD COLUMN synthetic_label TEXT;
+    ALTER TABLE forecast_records ADD COLUMN points_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(points_json));
+    ALTER TABLE forecast_records ADD COLUMN result_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(result_json));
+    CREATE INDEX forecast_records_job_idx ON forecast_records(job_id);
+  `,
 }];
 
 export function migrate(db: Database.Database): void {

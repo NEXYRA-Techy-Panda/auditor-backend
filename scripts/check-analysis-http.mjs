@@ -95,6 +95,7 @@ const pythonStderrFd = openSync(pythonErr, 'w');
 let pythonProcess;
 let auditorServer;
 let database;
+let cleanupError;
 try {
   const archive = spawnSync('git', ['-C', pythonRepo, 'archive', '--format=zip', '-o', archivePath, pythonCommit, 'app'], { encoding: 'utf8' });
   if (archive.status !== 0) throw new Error(`Could not export committed P010 source: ${archive.stderr}`);
@@ -221,8 +222,9 @@ try {
       rmSync(tempRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
       break;
     } catch (error) {
-      if (attempt >= 4) throw error;
+      if (attempt >= 4) { cleanupError = error; break; }
       await new Promise((resolve) => setTimeout(resolve, 500));
     }
   }
 }
+if (cleanupError) throw cleanupError;

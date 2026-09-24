@@ -3,6 +3,7 @@ import type { Response } from 'express';
 /** Stable error codes (contracts/v1/API.md) plus INTERNAL_ERROR for unexpected faults. */
 export type ErrorCode =
   | 'VALIDATION_ERROR'
+  | 'UNSUPPORTED_INPUT'
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'UNSUPPORTED_VERSION'

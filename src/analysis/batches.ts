@@ -10,6 +10,17 @@ const MAX_MERGED_WARNINGS = 100_000;
 const MAX_EVIDENCE_INTERVALS_PER_FINDING = 100_000;
 const RULE_VERSION = 'vacant-beyond-grace-v1';
 
+export interface AnalysisResultLimits {
+  findings: number;
+  warnings: number;
+  evidenceIntervalsPerFinding: number;
+}
+export const DEFAULT_ANALYSIS_RESULT_LIMITS: Readonly<AnalysisResultLimits> = Object.freeze({
+  findings: MAX_MERGED_FINDINGS,
+  warnings: MAX_MERGED_WARNINGS,
+  evidenceIntervalsPerFinding: MAX_EVIDENCE_INTERVALS_PER_FINDING,
+});
+
 export class AnalysisScopeError extends Error {
   constructor(readonly code: 'INSUFFICIENT_DATA' | 'VALIDATION_ERROR', message: string) { super(message); }
 }
@@ -31,7 +42,8 @@ const toEpoch = (value: string): number => Date.parse(value);
 const utc = (ms: number): string => new Date(ms).toISOString().replace('.000Z', 'Z');
 
 export class AnalysisBatchRunner {
-  constructor(private readonly database: AuditorDatabase, private readonly python: PythonAnalysisClient) {}
+  constructor(private readonly database: AuditorDatabase, private readonly python: PythonAnalysisClient,
+    private readonly resultLimits: Readonly<AnalysisResultLimits> = DEFAULT_ANALYSIS_RESULT_LIMITS) {}
 
   estimateBatches(datasetId: string, startUtc: string, endUtc: string, batchSize = OWNED_DEVICE_ROWS_PER_BATCH): number {
     const deviceIds = this.database.getAnalysisDeviceIds(datasetId, startUtc, endUtc);
@@ -109,8 +121,8 @@ export class AnalysisBatchRunner {
           const start = rawWarning.window_start_utc;
           if (typeof start === 'string' && !owns(start)) continue;
           warnings.set(JSON.stringify(rawWarning), rawWarning);
-          if (warnings.size > MAX_MERGED_WARNINGS) {
-            throw new AnalysisScopeError('INSUFFICIENT_DATA', `Merged analysis exceeds the ${MAX_MERGED_WARNINGS} warning result bound; narrow the requested range`);
+          if (warnings.size > this.resultLimits.warnings) {
+            throw new AnalysisScopeError('INSUFFICIENT_DATA', `Merged analysis exceeds the ${this.resultLimits.warnings} warning result bound; narrow the requested range`);
           }
         }
         const analysis = response.analysis as JsonRecord;
@@ -154,10 +166,11 @@ export class AnalysisBatchRunner {
           coverage: { start_utc: ownedStart, end_utc: ownedEnd } });
         if (options.yieldBetweenBatches !== false) await new Promise<void>((resolve) => setImmediate(resolve));
       }
-      findings.push(...mergeContributions(contributions));
-      if (findings.length > MAX_MERGED_FINDINGS) {
-        throw new AnalysisScopeError('INSUFFICIENT_DATA', `Merged analysis exceeds the ${MAX_MERGED_FINDINGS} finding result bound; narrow the requested range`);
+      const merged = mergeContributions(contributions, this.resultLimits.evidenceIntervalsPerFinding, this.resultLimits.findings);
+      if (findings.length + merged.length > this.resultLimits.findings) {
+        throw new AnalysisScopeError('INSUFFICIENT_DATA', `Merged analysis exceeds the ${this.resultLimits.findings} finding result bound; narrow the requested range`);
       }
+      for (const finding of merged) findings.push(finding);
     }
 
     const actual = this.database.getAnalysisCoverage(datasetId, startUtc, endUtc);
@@ -214,17 +227,26 @@ function deviceIntervalForPython(row: StoredAnalysisInterval): JsonRecord {
     ...(row.override_seconds == null ? {} : { override_seconds: row.override_seconds }), partial: row.partial === 1 || row.partial === true };
 }
 
-function mergeContributions(portions: Contribution[]): JsonRecord[] {
+function mergeContributions(portions: Contribution[], maxEvidenceIntervals: number, maxFindings: number): JsonRecord[] {
   portions.sort((a, b) => a.device.device_id.localeCompare(b.device.device_id) || a.start - b.start);
   const groups: Contribution[][] = [];
   for (const portion of portions) {
     const prior = groups.at(-1);
     const last = prior?.at(-1);
-    if (last && last.device.device_id === portion.device.device_id && last.end === portion.start && last.supported === portion.supported) prior!.push(portion);
-    else groups.push([portion]);
-  }
-  if (groups.some((group) => group.length > MAX_EVIDENCE_INTERVALS_PER_FINDING)) {
-    throw new AnalysisScopeError('INSUFFICIENT_DATA', `A merged finding exceeds the ${MAX_EVIDENCE_INTERVALS_PER_FINDING} interval-evidence bound; narrow the requested range`);
+    if (last && last.device.device_id === portion.device.device_id && last.end === portion.start && last.supported === portion.supported) {
+      if (prior!.length >= maxEvidenceIntervals) {
+        throw new AnalysisScopeError('INSUFFICIENT_DATA', `A merged finding exceeds the ${maxEvidenceIntervals} interval-evidence bound; narrow the requested range`);
+      }
+      prior!.push(portion);
+    } else {
+      groups.push([portion]);
+      if (maxEvidenceIntervals < 1) {
+        throw new AnalysisScopeError('INSUFFICIENT_DATA', `A merged finding exceeds the ${maxEvidenceIntervals} interval-evidence bound; narrow the requested range`);
+      }
+      if (groups.length > maxFindings) {
+        throw new AnalysisScopeError('INSUFFICIENT_DATA', `Merged analysis exceeds the ${maxFindings} finding result bound; narrow the requested range`);
+      }
+    }
   }
   return groups.map((group) => {
     const first = group[0]!; const last = group.at(-1)!;
@@ -262,8 +284,10 @@ function mergeContributions(portions: Contribution[]): JsonRecord[] {
 }
 
 export function pythonFailureSafeMessage(error: PythonServiceError): string {
-  return error.kind === 'timeout' ? 'Python analysis timed out'
-    : error.kind === 'unavailable' ? 'Python analysis service is unavailable'
-      : error.kind === 'malformed' ? 'Python analysis service returned an invalid response'
-        : `Python analysis rejected the request${error.upstreamCode ? ` (${error.upstreamCode})` : ''}`;
+  if (error.kind === 'rejected' && error.upstreamMessage) return error.upstreamMessage;
+  const subject = error.operation === 'forecast' ? 'forecast' : 'analysis';
+  return error.kind === 'timeout' ? `Python ${subject} timed out`
+    : error.kind === 'unavailable' ? `Python ${subject} service is unavailable`
+      : error.kind === 'malformed' ? `Python ${subject} service returned an invalid response`
+        : `Python ${subject} rejected the request${error.upstreamCode ? ` (${error.upstreamCode})` : ''}`;
 }

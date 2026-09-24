@@ -1,12 +1,15 @@
 import type { JsonRecord } from './types.js';
 
 export type PythonFailureKind = 'unavailable' | 'timeout' | 'malformed' | 'rejected';
+export type PythonServiceOperation = 'analysis' | 'forecast';
 
 export class PythonServiceError extends Error {
-  constructor(readonly kind: PythonFailureKind, readonly upstreamCode?: string) {
-    super(kind === 'timeout' ? 'Python analysis timed out' : kind === 'unavailable'
-      ? 'Python analysis service is unavailable' : kind === 'malformed'
-        ? 'Python analysis service returned an invalid response' : 'Python analysis request was rejected');
+  constructor(readonly kind: PythonFailureKind, readonly upstreamCode?: string,
+    readonly operation: PythonServiceOperation = 'analysis', readonly upstreamMessage?: string) {
+    const subject = operation === 'forecast' ? 'forecast' : 'analysis';
+    super(kind === 'timeout' ? `Python ${subject} timed out` : kind === 'unavailable'
+      ? `Python ${subject} service is unavailable` : kind === 'malformed'
+        ? `Python ${subject} service returned an invalid response` : `Python ${subject} request was rejected`);
   }
 }
 
@@ -94,6 +97,42 @@ export class PythonAnalysisClient {
       || !Number.isInteger(records.device_intervals) || Number(records.device_intervals) > requestedDeviceCount
       || Number(records.room_intervals) > 2000 || Number(records.device_intervals) > 2000) throw new PythonServiceError('malformed');
     return data;
+  }
+
+  async forecast(payload: JsonRecord): Promise<JsonRecord> {
+    const operation: PythonServiceOperation = 'forecast';
+    const requestBody = JSON.stringify(payload);
+    if (Buffer.byteLength(requestBody, 'utf8') > 8 * 1024 * 1024) throw new PythonServiceError('rejected', 'REQUEST_TOO_LARGE', operation);
+    let response: Response;
+    try {
+      response = await this.fetchImpl(`${this.options.baseUrl}/v1/forecast`, {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: requestBody, signal: AbortSignal.timeout(this.options.timeoutMs),
+      });
+    } catch (error) {
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new PythonServiceError('timeout', undefined, operation);
+      throw new PythonServiceError('unavailable', undefined, operation);
+    }
+
+    let body: unknown;
+    try { body = JSON.parse(await boundedResponseText(response)) as unknown; }
+    catch (error) {
+      if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) throw new PythonServiceError('timeout', undefined, operation);
+      throw new PythonServiceError('malformed', undefined, operation);
+    }
+    if (!response.ok) {
+      if (isRecord(body) && isRecord(body.error) && typeof body.error.code === 'string') {
+        const message = typeof body.error.message === 'string'
+          ? Array.from(body.error.message, (character) => {
+            const code = character.charCodeAt(0);
+            return code < 32 || code === 127 ? ' ' : character;
+          }).join('').slice(0, 512) : undefined;
+        throw new PythonServiceError('rejected', body.error.code, operation, message);
+      }
+      throw new PythonServiceError('malformed', undefined, operation);
+    }
+    if (!isEnvelope(body) || !isRecord(body.data)) throw new PythonServiceError('malformed', undefined, operation);
+    return body.data;
   }
 }
 

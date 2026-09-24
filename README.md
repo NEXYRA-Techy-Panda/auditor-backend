@@ -9,15 +9,18 @@ project.
 - **Owner**: Mohan.
 - **Local port**: `4001`. Python service: `http://localhost:8000`.
 
-## Status (P015 F4/M2, 2026-09-24)
+## Status (P020 M3, 2026-09-24)
 
 CSV and canonical JSON imports validate and persist through the auditor's
 private SQLite database. Persisted datasets can now be analyzed through
 bounded jobs calling Python's deterministic P010 rules. In production,
 `GET /api/v1/health` probes the configured Python `/health`; reachability does
-not imply a trained model. Forecast integration remains out of scope. Evidence:
+not imply a trained model. The P013 statistical hourly-profile baseline is
+available through persisted forecast jobs at `POST /api/v1/forecasts` and
+`GET /api/v1/forecasts/:id`; it runs while `model_available` is false. Evidence:
 [P006 import](docs/P006_F5_A_EVIDENCE.md) and
-[P015 analysis](docs/P015_ANALYSIS_INTEGRATION_EVIDENCE.md).
+[P015 analysis](docs/P015_ANALYSIS_INTEGRATION_EVIDENCE.md) and
+[P020 forecast](docs/P020_FORECAST_INTEGRATION_EVIDENCE.md).
 
 ## Setup and commands (Windows PowerShell or Linux shell; Node >= 24, npm)
 
@@ -33,6 +36,7 @@ npm run verify:contract    # dependency-free contract checks (read-only bundle)
 npm run validate:schema    # formal JSON Schema 2020-12 validation (Ajv)
 npm run check:import-scale # generated 31-day CSV over HTTP on port 4001
 npm run check:analysis-http # isolated P010 snapshot + auditor scratch DB
+npm run check:forecast-http # isolated P013 snapshot + generated history + scratch DB
 ```
 
 The database path defaults to `./data/auditor.sqlite` and can be overridden

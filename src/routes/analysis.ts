@@ -28,7 +28,7 @@ export function analysisRouter(jobs: AnalysisJobManager, database: AuditorDataba
     if (!page || !pageSize) { sendError(res, 422, { code: 'VALIDATION_ERROR', message: 'page must be positive and page_size must be between 1 and 500' }); return; }
     const result = jobs.get(req.params.id!, pageSize, (page - 1) * pageSize);
     const job = result.job;
-    if (!job) { sendError(res, 404, { code: 'NOT_FOUND', message: 'Analysis job was not found' }); return; }
+    if (!job || job.job_type !== 'analysis') { sendError(res, 404, { code: 'NOT_FOUND', message: 'Analysis job was not found' }); return; }
     const data: Record<string, unknown> = {
       job_id: job.job_id, dataset_id: job.dataset_id, status: job.status,
       method: job.method, method_version: job.method_version,

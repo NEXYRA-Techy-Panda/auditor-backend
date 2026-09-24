@@ -2,32 +2,35 @@
 
 ## Layer
 
-P015, Agent C — Codex, F4/M2 auditor-to-Python analysis integration. Owner:
-Mohan. Exclusive write scope: `auditor-backend`. Python source is read-only at
-P010 commit `36f5832f298379c3a889a32673c409152aa8eaf0`.
+P020, Agent C — Codex, M3 auditor forecast integration. Owner: Mohan.
+Exclusive write scope: `auditor-backend`. Read-only Python baseline:
+P013 commit `7f71363aa9361e67a0cb2815b98aee79b0708cf9`.
 
 ## Status
 
-- Task: completed and published. Review: pending.
-- Starting auditor HEAD `67998d56ec03bf25525f0dc1bf2394c7ae2558bf` was clean on
-  `main`, equal to remote. No applicable `AGENTS.md` found.
-- P006 outcome is preserved in `PROGRESS_LOG.md` and `HANDOFF.md`.
+- Task: completed; publication pending. Review: pending.
+- Starting auditor HEAD `32d88beabc7d0e1d1a3fb7d26ae74117b4cce6ca` was clean on
+  `main`, equal to `origin/main`.
+- P006 and P015 outcomes are preserved in `PROGRESS_LOG.md` and `HANDOFF.md`.
+- P015 correctness evidence addendum is in
+  `P015_ANALYSIS_INTEGRATION_EVIDENCE.md`; it closes the result-cap overflow
+  test gap and distinguishes retrieval pagination from result bounds.
 
 ## Checkpoint — 2026-09-24
 
-- Implemented Python client with bounded response bodies/timeouts, real health
-  probe, validated envelopes, and safe errors; configured `ML_TIMEOUT_MS`.
-- Added migration v2 for analysis execution metadata/results. Added persisted
-  jobs/findings, single-worker/four-waiting queue, progress, startup recovery,
-  failure states, current-tariff result costs, and paginated status results.
-- Added context-window batching per device with no overlapping owned interval,
-  one room, exact referenced policies, 3,600-second-plus-one-interval context,
-  evidence-based merging, and explicit bound failure.
-- Focused checks: 14 tests pass. Real `check:analysis-http` against an isolated
-  export of P010 commit `36f5832f298379c3a889a32673c409152aa8eaf0` passed:
-  reference finding 0.01 kWh; total 0.03 kWh; tariff costs ₹0.10/₹0.30;
-  batch sizes 1000/317 equivalent; missing room history breaks continuity;
-  requests never exceeded 1000 records per array.
-- Final verification passed: contract (75), schema (24), typecheck, lint,
-  tests (14), build, import HTTP regression, and real analysis HTTP integration.
-- Exact next action: review pending; stop after P015.
+- Reused P015's persisted job queue for forecasts; added migration v3, typed
+  Python `/v1/forecast` client, public forecast job routes and persisted hourly
+  results. Existing import and analysis APIs remain available.
+- Built history from stored device interval energy on the Asia/Kolkata hourly
+  grid, with complete non-overlapping coverage required for every expected
+  device. Exact partial unions are accepted; crossing-hour intervals,
+  overlaps and missing device hours are omitted and disclosed.
+- Added deterministic/API tests for all horizons, 2,160-hour cap,
+  missing/overlap/partial/crossing inputs, origin defaults, policy transitions,
+  persistence, tariff handling and Python response validation. Final suite:
+  27/27 pass.
+- Real P013 HTTP check: 672 observed hours, 720 November points, 10.8 kWh,
+  current tariff repricing, and a persisted insufficient-history failure.
+- Contract 75/75, schema 24/24, typecheck, lint, build and import HTTP regression
+  pass. Exact next action: inspect scope, commit and push without force, verify
+  remote `main`; review pending.

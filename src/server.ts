@@ -5,6 +5,7 @@ import { AuditorDatabase } from './db/database.js';
 import { PythonAnalysisClient } from './analysis/client.js';
 import { AnalysisBatchRunner } from './analysis/batches.js';
 import { AnalysisJobManager } from './analysis/jobs.js';
+import { ForecastRunner } from './forecast/runner.js';
 
 // Optional local overrides; variables already set in the environment win.
 if (existsSync('.env')) process.loadEnvFile('.env');
@@ -23,9 +24,9 @@ try {
 const { host, port, shutdownTimeoutMs } = config;
 const database = new AuditorDatabase(config.databasePath, config.databaseBusyTimeoutMs);
 const python = new PythonAnalysisClient({ baseUrl: config.mlServiceUrl, timeoutMs: config.mlTimeoutMs });
-const jobs = new AnalysisJobManager(database, new AnalysisBatchRunner(database, python));
+const jobs = new AnalysisJobManager(database, new AnalysisBatchRunner(database, python), new ForecastRunner(database, python));
 const interruptedJobs = jobs.recoverAfterRestart();
-if (interruptedJobs) console.log(`Marked ${interruptedJobs} unfinished analysis job(s) as interrupted`);
+if (interruptedJobs) console.log(`Marked ${interruptedJobs} unfinished analysis/forecast job(s) as interrupted`);
 const server = createApp(config, database, { python, jobs }).listen(port, host, () => {
   console.log(`auditor-backend listening on http://${host}:${port} (health: /api/v1/health, pid ${process.pid})`);
 });

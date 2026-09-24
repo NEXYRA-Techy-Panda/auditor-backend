@@ -18,7 +18,7 @@ export interface DatasetImport {
     room_intervals: JsonRecord[]; device_intervals: JsonRecord[];
   };
 }
-export interface AnalysisJobInput { jobId: string; datasetId: string; status: 'queued' | 'running' | 'completed' | 'failed'; request: JsonRecord; }
+export interface AnalysisJobInput { jobId: string; datasetId: string; status: 'queued' | 'running' | 'completed' | 'failed'; request: JsonRecord; jobType?: 'analysis' | 'forecast'; }
 export interface FindingInput { findingId: string; jobId: string; datasetId: string; scopeType: string; scopeId?: string; findingType: string; severity: string; details: JsonRecord; }
 export interface ForecastInput {
   forecastId: string; jobId: string; datasetId: string; targetStartUtc: string; targetEndUtc: string;
@@ -48,12 +48,20 @@ export interface StoredAnalysisInterval extends JsonRecord {
 }
 export interface AnalysisJobRecord {
   job_id: string; dataset_id: string; status: 'queued' | 'running' | 'completed' | 'failed';
+  job_type: 'analysis' | 'forecast';
   request: JsonRecord; method: string | null; method_version: string | null;
   requested_start_utc: string | null; requested_end_utc: string | null;
   actual_start_utc: string | null; actual_end_utc: string | null;
   batch_completed: number; batch_total: number; progress: JsonRecord;
   result: JsonRecord | null; error_code: string | null; error_message: string | null;
   created_at: string; completed_at: string | null;
+}
+export interface ForecastRecordInput {
+  forecastId: string; jobId: string; datasetId: string; horizon: string; originUtc: string;
+  horizonStartUtc: string; horizonEndUtc: string; energyKwh: number; method: string;
+  baselineVersion: string; modelVersion: string | null; timezone: string; synthetic: boolean;
+  syntheticLabel: string | null; points: JsonRecord[]; result: JsonRecord; assumptions: JsonRecord;
+  historyStartUtc: string | null; historyEndUtc: string | null;
 }
 export interface DatasetListItem {
   dataset_id: string; run_id: string; scenario_id: string; interval_seconds: number; imported_utc: string;
@@ -211,6 +219,29 @@ export class AuditorDatabase {
     return row ? { ...row, synthetic: row.synthetic === 1 } : undefined;
   }
 
+  getForecastDeviceIds(datasetId: string): string[] {
+    return (this.connection.prepare('SELECT device_id FROM devices WHERE dataset_id=? ORDER BY room_id,device_id')
+      .all(datasetId) as Array<{ device_id: string }>).map((row) => row.device_id);
+  }
+
+  getForecastDeviceIntervals(datasetId: string, fromUtc: string, toUtc: string): StoredAnalysisInterval[] {
+    return this.connection.prepare(`SELECT device_id,interval_start_utc,interval_end_utc,interval_seconds,energy_kwh,partial
+      FROM device_intervals WHERE dataset_id=? AND interval_start_utc<? AND interval_end_utc>?
+      ORDER BY device_id,interval_start_utc,interval_end_utc`).all(datasetId, toUtc, fromUtc) as StoredAnalysisInterval[];
+  }
+
+  getForecastCalendarPolicy(datasetId: string, originUtc: string): AnalysisPolicyMeta | undefined {
+    const row = this.connection.prepare(`SELECT p.policy_id,p.version,p.kind,p.rules_json,p.applies_to,p.effective_from_utc
+      FROM policy_versions p JOIN datasets d ON d.dataset_id=p.dataset_id
+      WHERE p.dataset_id=? AND p.kind='office_hours' AND p.applies_to IN ('building:'||d.building_id,d.building_id)
+        AND p.effective_from_utc<=?
+      ORDER BY p.effective_from_utc DESC,p.version DESC LIMIT 1`).get(datasetId, originUtc) as
+      (Omit<AnalysisPolicyMeta, 'rules'> & { rules_json: string }) | undefined;
+    if (!row) return undefined;
+    const { rules_json, ...policy } = row;
+    return { ...policy, rules: JSON.parse(rules_json) as JsonRecord };
+  }
+
   getAnalysisRooms(datasetId: string, roomIds: string[]): AnalysisRoomMeta[] {
     if (roomIds.length === 0) return [];
     const marks = roomIds.map(() => '?').join(',');
@@ -291,9 +322,9 @@ export class AuditorDatabase {
   }
 
   createAnalysisJob(input: AnalysisJobInput): void {
-    this.connection.prepare(`INSERT INTO analysis_jobs(job_id,dataset_id,status,request_json,requested_start_utc,requested_end_utc)
-      VALUES (?,?,?,?,?,?)`).run(input.jobId, input.datasetId, input.status, JSON.stringify(input.request),
-      input.request.start_utc ?? null, input.request.end_utc ?? null);
+    this.connection.prepare(`INSERT INTO analysis_jobs(job_id,dataset_id,status,request_json,requested_start_utc,requested_end_utc,job_type)
+      VALUES (?,?,?,?,?,?,?)`).run(input.jobId, input.datasetId, input.status, JSON.stringify(input.request),
+      input.request.start_utc ?? null, input.request.end_utc ?? null, input.jobType ?? 'analysis');
   }
 
   pendingAnalysisJobs(): number {
@@ -335,6 +366,23 @@ export class AuditorDatabase {
     });
   }
 
+  completeForecastJob(input: ForecastRecordInput): void {
+    this.transaction(() => {
+      this.connection.prepare(`INSERT INTO forecast_records(forecast_id,job_id,dataset_id,target_start_utc,target_end_utc,
+        energy_kwh,assumptions_json,horizon,origin_utc,method,baseline_version,model_version,timezone,synthetic,synthetic_label,
+        points_json,result_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        input.forecastId, input.jobId, input.datasetId, input.horizonStartUtc, input.horizonEndUtc,
+        input.energyKwh, JSON.stringify(input.assumptions), input.horizon, input.originUtc, input.method,
+        input.baselineVersion, input.modelVersion, input.timezone, input.synthetic ? 1 : 0,
+        input.syntheticLabel, JSON.stringify(input.points), JSON.stringify(input.result));
+      const completed = this.connection.prepare(`UPDATE analysis_jobs SET status='completed',result_json=?,method=?,method_version=?,
+        actual_start_utc=?,actual_end_utc=?,completed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
+        WHERE job_id=? AND job_type='forecast' AND status='running'`)
+        .run(JSON.stringify(input.result), input.method, input.baselineVersion, input.historyStartUtc, input.historyEndUtc, input.jobId);
+      if (completed.changes !== 1) throw new Error('Forecast job was not running at completion');
+    });
+  }
+
   failAnalysisJob(jobId: string, code: string, message: string): void {
     this.connection.prepare(`UPDATE analysis_jobs SET status='failed',error_code=?,error_message=?,
       completed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE job_id=? AND status IN ('queued','running')`)
@@ -342,7 +390,7 @@ export class AuditorDatabase {
   }
 
   getAnalysisJob(jobId: string): AnalysisJobRecord | undefined {
-    const row = this.connection.prepare(`SELECT job_id,dataset_id,status,request_json,method,method_version,
+    const row = this.connection.prepare(`SELECT job_id,dataset_id,status,job_type,request_json,method,method_version,
       requested_start_utc,requested_end_utc,actual_start_utc,actual_end_utc,batch_completed,batch_total,progress_json,
       result_json,error_code,error_message,created_at,completed_at FROM analysis_jobs WHERE job_id=?`).get(jobId) as
       (Omit<AnalysisJobRecord, 'status' | 'request' | 'progress' | 'result'> & { status: AnalysisJobRecord['status']; request_json: string; progress_json: string; result_json: string | null }) | undefined;
@@ -362,6 +410,17 @@ export class AuditorDatabase {
   getCurrentTariff(userId = 'local'): number | null {
     const row = this.connection.prepare('SELECT rate_per_kwh FROM user_tariff_settings WHERE user_id=?').get(userId) as { rate_per_kwh: number } | undefined;
     return row?.rate_per_kwh ?? null;
+  }
+
+  getForecastRecord(forecastId: string): JsonRecord | undefined {
+    const row = this.connection.prepare(`SELECT forecast_id,job_id,dataset_id,horizon,origin_utc,target_start_utc,target_end_utc,
+      energy_kwh,method,baseline_version,model_version,timezone,synthetic,synthetic_label,points_json,result_json,assumptions_json
+      FROM forecast_records WHERE forecast_id=?`).get(forecastId) as
+      (Record<string, unknown> & { points_json: string; result_json: string; assumptions_json: string; synthetic: number | null }) | undefined;
+    if (!row) return undefined;
+    return { ...row, synthetic: row.synthetic === null ? null : row.synthetic === 1,
+      points: JSON.parse(row.points_json) as JsonRecord[], result: JSON.parse(row.result_json) as JsonRecord,
+      assumptions: JSON.parse(row.assumptions_json) as JsonRecord };
   }
 
   addFinding(input: FindingInput): void {

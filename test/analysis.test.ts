@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { test } from 'node:test';
-import { AnalysisBatchRunner } from '../src/analysis/batches.js';
+import { AnalysisBatchRunner, DEFAULT_ANALYSIS_RESULT_LIMITS, type AnalysisResultLimits } from '../src/analysis/batches.js';
 import { PythonAnalysisClient, PythonServiceError } from '../src/analysis/client.js';
 import { AnalysisJobManager } from '../src/analysis/jobs.js';
 import { createApp } from '../src/app.js';
@@ -15,6 +15,40 @@ import { AuditorDatabase, type DatasetImport } from '../src/db/database.js';
 const fixture = JSON.parse(readFileSync(new URL('../contracts/v1/fixtures/reference.json', import.meta.url), 'utf8')) as DatasetImport['data'];
 const requestId = '12345678-1234-4234-9234-123456789abc';
 const envelope = (data: unknown): Response => Response.json({ data, meta: { request_id: requestId } });
+
+test('P015 result caps are 100,000 and overflow fails jobs without partial success', async () => {
+  assert.deepEqual(DEFAULT_ANALYSIS_RESULT_LIMITS, {
+    findings: 100_000, warnings: 100_000, evidenceIntervalsPerFinding: 100_000,
+  });
+  const scenarios: Array<{ name: string; limits: Partial<AnalysisResultLimits>; phrase: RegExp }> = [
+    { name: 'findings', limits: { findings: 0 }, phrase: /0 finding result bound/ },
+    { name: 'warnings', limits: { warnings: 0 }, phrase: /0 warning result bound/ },
+    { name: 'evidence', limits: { evidenceIntervalsPerFinding: 0 }, phrase: /0 interval-evidence bound/ },
+  ];
+  for (const [index, scenario] of scenarios.entries()) {
+    const database = new AuditorDatabase(':memory:');
+    try {
+      const datasetId = `dataset-cap-${scenario.name}`;
+      database.storeDataset({ datasetId, sourceFormat: 'json', sourceResolutionSeconds: 60,
+        semanticFingerprint: `cap-${scenario.name}`, data: structuredClone(fixture) });
+      const client = new PythonAnalysisClient({ baseUrl: 'http://python.invalid', timeoutMs: 1000,
+        fetchImpl: pythonStub().fetchImpl });
+      const capConfig: AnalysisResultLimits = { ...DEFAULT_ANALYSIS_RESULT_LIMITS, ...scenario.limits };
+      const jobs: AnalysisJobManager = new AnalysisJobManager(database, new AnalysisBatchRunner(database, client, capConfig));
+      const accepted: { job_id: string; status: 'queued' } = jobs.submit({ dataset_id: datasetId });
+      let job = database.getAnalysisJob(accepted.job_id);
+      for (let attempt = 0; attempt < 100 && job?.status !== 'failed'; attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        job = database.getAnalysisJob(accepted.job_id);
+      }
+      assert.equal(job?.status, 'failed', `scenario ${index}: ${scenario.name}`);
+      assert.equal(job?.error_code, 'INSUFFICIENT_DATA');
+      assert.match(job?.error_message ?? '', scenario.phrase);
+      assert.equal(database.getAnalysisFindings(accepted.job_id, 10, 0).total, 0);
+      assert.equal(job?.result, null, 'overflow must not appear as completed partial results');
+    } finally { database.close(); }
+  }
+});
 
 function pythonStub() {
   let analyses = 0;
@@ -76,7 +110,7 @@ test('analysis job lifecycle persists rule findings and applies current tariff w
     assert.equal(accepted.status, 'queued');
     let status: { data: Record<string, unknown> } | undefined;
     for (let i = 0; i < 100; i++) {
-      const response = await fetch(`${base}/api/v1/analysis/jobs/${accepted.job_id}?page_size=10`);
+      const response = await fetch(`${base}/api/v1/analysis/jobs/${accepted.job_id}?page=1&page_size=1`);
       status = await response.json() as { data: Record<string, unknown> };
       if (status.data.status === 'completed' || status.data.status === 'failed') break;
       await new Promise((resolve) => setTimeout(resolve, 10));
@@ -84,6 +118,11 @@ test('analysis job lifecycle persists rule findings and applies current tariff w
     assert.equal(status?.data.status, 'completed', JSON.stringify(status));
     const result = status!.data.result as Record<string, unknown>;
     assert.equal((result.findings as unknown[]).length, 1);
+    assert.deepEqual(result.findings_pagination, { page: 1, page_size: 1, total: 1 });
+    const nextPage = (await (await fetch(`${base}/api/v1/analysis/jobs/${accepted.job_id}?page=2&page_size=1`)).json() as
+      { data: { result: { findings: unknown[]; findings_pagination: Record<string, unknown> } } }).data.result;
+    assert.deepEqual(nextPage.findings, []);
+    assert.equal(nextPage.findings_pagination.total, 1, 'response pagination does not change persisted computation totals');
     const finding = (result.findings as Array<Record<string, unknown>>)[0]!;
     assert.equal(finding.avoidable_energy_kwh, 0.01);
     assert.deepEqual(result.excluded_devices, [{ device_id: 'fridge-b', reason: 'always-on exception' }]);
@@ -132,21 +171,23 @@ test('Python client distinguishes unavailable, timeout, malformed and valid upst
   await assert.rejects(rejected.analyze({}), (error: unknown) => error instanceof PythonServiceError && error.kind === 'rejected' && error.upstreamCode === 'REQUEST_TOO_LARGE');
 });
 
-test('unfinished analysis jobs become honest interrupted failures on restart', () => {
+test('unfinished analysis and forecast jobs become honest interrupted failures on restart', () => {
   const database = new AuditorDatabase(':memory:');
   try {
     database.storeDataset({ datasetId: 'dataset-restart', sourceFormat: 'json', sourceResolutionSeconds: 60,
       semanticFingerprint: 'restart-fixture', data: structuredClone(fixture) });
     database.createAnalysisJob({ jobId: 'job-interrupted', datasetId: 'dataset-restart', status: 'queued', request: {} });
     database.createAnalysisJob({ jobId: 'job-running', datasetId: 'dataset-restart', status: 'running', request: {} });
+    database.createAnalysisJob({ jobId: 'forecast-running', datasetId: 'dataset-restart', status: 'running', request: {}, jobType: 'forecast' });
     const jobs = new AnalysisJobManager(database, new AnalysisBatchRunner(database,
       new PythonAnalysisClient({ baseUrl: 'http://unused.invalid', timeoutMs: 100 })));
-    assert.equal(jobs.recoverAfterRestart(), 2);
+    assert.equal(jobs.recoverAfterRestart(), 3);
     const recovered = database.getAnalysisJob('job-interrupted');
     assert.equal(recovered?.status, 'failed');
     assert.equal(recovered?.error_code, 'JOB_INTERRUPTED');
     assert.match(recovered?.error_message ?? '', /service restart/);
     assert.equal(database.getAnalysisJob('job-running')?.error_code, 'JOB_INTERRUPTED');
+    assert.equal(database.getAnalysisJob('forecast-running')?.error_code, 'JOB_INTERRUPTED');
   } finally { database.close(); }
 });
 
