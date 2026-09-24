@@ -2,7 +2,9 @@
 
 ## Assignment
 
-P028-PREP — report economics preparation. Developer Mohan; Agent M-B — Codex.
+P028-PREP-R2 — resolve reporting verification tooling blocker. Developer Mohan;
+Agent M-B — Codex. Previous P028-PREP/R1 results remain below and in
+`docs/PROGRESS_LOG.md`.
 Progress: Supporting Mohan batch 27 / approximately 29 planned. Branch:
 `mohan/p028-report-math-prep`; isolated worktree:
 `K:\NEXYRA-P028-report-math-prep`; base SHA
@@ -22,14 +24,14 @@ merged.
 
 Prepared only the standalone typed math module, focused tests, evidence and
 continuity documentation. No route/API, persistence, database/schema,
-application startup, dependency, shared contract or frontend changes.
+application startup, dependency manifest/lockfile, shared contract or frontend
+changes.
 
-Status: blocked for the required compiler/linter/focused-test/build gates.
-Twenty-seven direct Node 24 runtime assertions against the module passed after
-targeted safeguards were added. Locked `npm ci` failed compiling
-`better-sqlite3`; no local typecheck, lint or `tsx` runner is available. Review
-pending. R1 fix/handoff commit: `538f87cdc18bce4d59f510a9bd417309cfe65ce5`
-(local on `mohan/p028-report-math-prep`).
+Status: completed for pure-module verification; review pending. R1 fix/handoff
+commit `538f87cdc18bce4d59f510a9bd417309cfe65ce5` remains local on
+`mohan/p028-report-math-prep`. R2 used `npm ci --ignore-scripts`; all requested
+static gates and the focused test passed. Native SQLite/runtime behavior is
+not verified because lifecycle scripts were deliberately skipped.
 
 ## Checkpoint — 2026-09-25 02:07 +05:30
 
@@ -69,8 +71,20 @@ pending. R1 fix/handoff commit: `538f87cdc18bce4d59f510a9bd417309cfe65ce5`
   passed. `git diff --check` passed.
 - No install retry or security/script bypass. No generated dependencies will be
   committed. No runtime service or database was started or changed.
-- Exact next action: Mohan provisions the Windows “Desktop development with
-  C++” workload, then runs `npm ci`, `npm run typecheck`, `npm run lint`,
-  `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts`, and
-  `npm run build` in this worktree. Fix compiler/test findings before review.
-  No push, merge, deployment, or API/UI implementation.
+- R1 next action (superseded by R2): install Windows C++ build tools so npm
+  could run native lifecycle scripts. R2 instead used the authorized
+  lifecycle-free install for pure-module gates only.
+
+## P028-PREP-R2 checkpoint — 2026-09-25 02:52 +05:30
+
+- `npm ci --ignore-scripts`: exit 0; 197 packages added. Lifecycle scripts
+  were deliberately skipped; SQLite's native addon remains absent.
+- `npm ls --depth=0` matched the lockfile. TypeScript 6.0.3, ESLint 10.11.0,
+  tsx 4.23.15, better-sqlite3 13.0.3.
+- `npm run typecheck`: exit 0; `npm run lint`: exit 0; focused
+  `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts`:
+  exit 0 (19/19); `npm run build`: exit 0; `git diff --check`: exit 0.
+- No database-backed test, service, or SQLite runtime operation was run.
+- Exact next action: separately implement report API/persistence and frontend
+  report UI using server-derived persisted evidence. Runtime/release verification
+  remains future work. Branch remains local; review pending.

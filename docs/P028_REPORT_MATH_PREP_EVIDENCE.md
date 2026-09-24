@@ -237,3 +237,39 @@ bases are not placed into one ranking. Flat-tariff output still excludes
 unsupported utility charges. The feature branch is local; commits are listed
 in the progress log. API/UI integration, release verification and deployment
 remain pending.
+
+## P028-PREP-R2 verification closeout (2026-09-25)
+
+The previous `npm ci` failure was the ordinary `node-gyp` native
+`better-sqlite3` build failure recorded in R1, not an approval/security
+rejection. Its npm debug log has since rotated out of the local cache; the
+branch's committed R1 log/evidence preserves the diagnostic. R2 made one
+authorized install attempt in this worktree:
+
+```text
+npm ci --ignore-scripts                         exit 0
+npm ls --depth=0                                exit 0
+npm run typecheck                               exit 0
+npm run lint                                    exit 0
+node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts
+                                                exit 0 (19 passed, 0 failed)
+npm run build                                   exit 0
+git diff --check                                exit 0
+```
+
+`npm ci --ignore-scripts` installed 197 packages (198 audited, zero
+vulnerabilities) while omitting package lifecycle scripts. Installed TypeScript
+6.0.3, ESLint 10.11.0, tsx 4.23.15, and better-sqlite3 13.0.3 match the lock.
+No fallback toolchain or source change was needed. `package.json` and
+`package-lock.json` are unchanged. `node_modules/` and build output remain
+ignored and uncommitted.
+
+This confirms static checks, compilation, lint, and the pure reporting tests
+only. The `better_sqlite3.node` native binary is absent because scripts were
+skipped. No database-backed test, DB open, server, or application runtime check
+was run; native SQLite/application runtime compatibility is **not verified**.
+No runtime/release verification, report API/persistence, or frontend report UI
+is complete. The exact next step is a separately scoped backend integration
+that derives claims and provenance from persisted datasets/findings, followed
+by frontend report forms/sections. Preserve unverified comparison status
+until external-input matching is established. Review pending.

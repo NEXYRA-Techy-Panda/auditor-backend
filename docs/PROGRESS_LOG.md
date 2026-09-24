@@ -582,3 +582,33 @@ correction entry; do not rewrite history.
   `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts`,
   `npm run build`; fix findings before review. Report API/UI integration and
   release verification remain pending. Review pending.
+
+## 2026-09-25 02:52 +05:30 (IST) — P028-PREP-R2 (pure module verification)
+
+- Resumed isolated `K:\NEXYRA-P028-report-math-prep`, branch
+  `mohan/p028-report-math-prep`, at `f4f20a34883e5c233dcb7bf5fbd7ce06e7ce6e9b`;
+  worktree clean. Prior npm debug log had been rotated from npm cache, but R1
+  committed progress/evidence preserves the `node-gyp` Visual Studio/C++ error.
+  This was a native build failure, not an approval/security rejection.
+- One authorized `npm ci --ignore-scripts`: exit 0; 197 packages installed,
+  198 audited, 0 vulnerabilities. This deliberately skipped lifecycle scripts.
+  `npm ls --depth=0`: exit 0; all packages matched package-lock. Confirmed
+  TypeScript 6.0.3, ESLint 10.11.0, tsx 4.23.15,
+  better-sqlite3 13.0.3. package files unchanged.
+- Gates: `npm run typecheck` exit 0; `npm run lint` exit 0;
+  `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts` exit 0
+  (19 passed, 0 failed); `npm run build` exit 0; `git diff --check` exit 0.
+- No fallback was needed; these passed using the repository's configured tools.
+  Focused tests exercise only the pure module. The native addon
+  `node_modules/better-sqlite3/build/Release/better_sqlite3.node` is absent;
+  no SQLite import, DB test, service, training, benchmark or production request
+  was run. Application/native SQLite runtime compatibility remains unverified.
+- No source defect surfaced in the focused suite; no source/test/dependency
+  manifest changes were needed in R2. `dist/` and `node_modules/` are ignored;
+  neither is staged. Existing implementation safeguards and R1 fixes remain.
+- Handoff/docs updated to distinguish successful pure-module verification
+  from native runtime, report API/UI integration and release verification.
+- Exact next action: separately implement the report API/persistence and
+  frontend UI using evidence derived from persisted data; retain unverified
+  comparison status until external-input matching is provable. Do not push,
+  merge or deploy. Review pending.

@@ -503,8 +503,25 @@ changes. Return updated sections as evidence.
   external inputs. No report endpoint or frontend is implemented.
 - Processes: the npm install/check commands exited; no task-owned service,
   database or training process remains. No process was stopped.
-- Exact next action: provision Visual Studio “Desktop development with C++”
+- R1 exact next action (superseded in R2): provision Visual Studio “Desktop development with C++”
   locally; in this worktree run `npm ci`, `npm run typecheck`, `npm run lint`,
   `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts`, and
   `npm run build`, then address any findings. API/UI integration and release
   verification require later assignments. Review pending.
+
+## P028-PREP-R2 verification closeout (2026-09-25; complete, review pending)
+
+- One `npm ci --ignore-scripts` in the isolated worktree succeeded (197 added;
+  lifecycle scripts omitted). Versions match lock: TypeScript 6.0.3, ESLint
+  10.11.0, tsx 4.23.15, better-sqlite3 13.0.3.
+- Typecheck/lint/build all passed. Focused P028 tsx test passed 19/19.
+  `git diff --check` passed. The previous failure was native node-gyp build for
+  better-sqlite3, not security/approval; the debug log rotated, with the error
+  preserved in committed R1 continuity evidence.
+- No database tests or runtime services. `better_sqlite3.node` is absent due
+  skipped install scripts; runtime compatibility is unverified. No fallback
+  toolchain, code fixes, dependency manifest changes, API/UI implementation,
+  push, merge or deployment.
+- Exact next action: separately integrate a report API backed by verified
+  persisted findings/datasets, then integrate the frontend report UI. Do not
+  claim external-input matching until the backend can prove it. Review pending.
