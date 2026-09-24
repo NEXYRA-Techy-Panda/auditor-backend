@@ -534,3 +534,48 @@ correction entry; do not rewrite history.
 - Exact next action: run typecheck, lint and focused P028 tests when the
   approved existing Node dependencies are available; later perform API/UI
   integration as a separately scoped task.
+
+## 2026-09-25 02:35 +05:30 (IST) — P028-PREP-R1 (verification follow-up)
+
+- Resumed only `K:\NEXYRA-P028-report-math-prep`, branch
+  `mohan/p028-report-math-prep`, existing commits
+  `abab61321c723f2a2c8cf30392d64fabed496528` and
+  `ff3d624c915227b2abf5085cd24388daa80ab9c1`. Worktree started clean. No
+  applicable `AGENTS.md` exists in the worktree. No owner repository was edited.
+- Toolchain: Node `v24.21.0`, npm `11.19.0`. No local `node_modules`; no
+  PATH/global `tsc`, `eslint` or `tsx` toolchain matching lockfile versions.
+  npm cache lookup for `tsx` returned `ENOTCACHED`.
+- Authorized `npm ci` attempted in this isolated worktree: exit 1. Locked
+  `better-sqlite3@13.0.3` invoked node-gyp; Python `3.13.15` was found but no
+  Visual Studio installation / C++ workload. Install cleanup reported EPERM;
+  dependencies remained unmet. No retries and no scripts/security bypass.
+- Gates: `npm run typecheck` exit 1 (`tsc` missing); `npm run lint` exit 1
+  (`eslint` missing); `npm exec --offline -- tsx --test
+  test/P028_report_economics.test.ts` exit 1 (`ENOTCACHED`); `npm run build`
+  exit 1 (`tsc` missing). `npm run test -- --test-name-pattern=P028` also
+  exited 1 (`tsx` missing). No contract files changed, so contract verification
+  was not run.
+- Twenty-seven direct Node 24 `--experimental-strip-types` assertions passed
+  against the module. These are runtime smoke assertions, not a substitute for
+  compiler, linter, actual tsx test runner or build. `git diff --check` passed.
+- Defects/safeguards: payback must consume explicit supported gross recurring
+  INR/month and deduct monthly recurring cost once; checked finite outputs;
+  retained known upfront cost on unavailable estimates; ranking excludes
+  unsupported/unknown-cost candidates and refuses mixed day/month/currency/
+  assumption bases; policy changes require explicit intended-intervention
+  declaration; UTC timestamp validation checks actual calendar dates; tests
+  include disjoint windows and nonfinite results.
+- Handoff expanded with module exports, examples, persisted evidence/API input
+  needs, limitations and the fact that structural input validation does not
+  establish truth. Current contract lacks established external-input matching
+  provenance or comparison endpoint; comparison remains unverified until a
+  future backend can derive/prove the match.
+- No routes/UI/contracts/database/build output/dependencies committed. No
+  service, DB, model training or task-owned process remains. Commits remain
+  local; no push, merge, deployment or worktree deletion.
+- Status: blocked on workstation Visual Studio “Desktop development with C++”
+  prerequisite to `npm ci`/native SQLite build. Exact next action: provision
+  that workload, then rerun `npm ci`, `npm run typecheck`, `npm run lint`,
+  `node_modules/.bin/tsx.cmd --test test/P028_report_economics.test.ts`,
+  `npm run build`; fix findings before review. Report API/UI integration and
+  release verification remain pending. Review pending.

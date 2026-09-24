@@ -6,7 +6,7 @@ import { calculateEconomics, calculateScenarioComparison, createRecommendation, 
 const baseEconomics: EconomicsInput = { supported_energy_reduction_kwh: 0.01, source_period_days: 1,
   projection_period_days: 1, projection_period_months: 1, tariff_inr_per_kwh: 10,
   implementation_cost_inr: null, recurring_cost_inr: null, recurring_cost_period_months: null, extrapolation: null,
-  recurring_savings_rate_supported: false };
+  supported_gross_recurring_savings_inr_per_month: null };
 const baseRecommendation: RecommendationInput = { recommendation_id: 'vacancy-1', suggested_action: 'Review device schedule',
   evidence_type: 'vacancy_estimate', method: 'vacant-beyond-grace-v1', references: [{ dataset_id: 'd1', run_id: 'r1', job_id: 'j1',
     finding_id: 'f1', device_id: 'lamp-1', room_id: 'room-1', start_utc: '2026-01-01T00:00:00Z', end_utc: '2026-01-01T00:01:00Z' }],
@@ -29,7 +29,10 @@ test('historical, forecast, excess and trend evidence cannot claim savings', () 
 });
 
 test('missing tariff is unavailable while an explicit zero tariff is valid', () => {
-  assert.equal(calculateEconomics({ ...baseEconomics, tariff_inr_per_kwh: null }).gross_savings_inr, null);
+  const missing = calculateEconomics({ ...baseEconomics, tariff_inr_per_kwh: null, implementation_cost_inr: 12000 });
+  assert.equal(missing.gross_savings_inr, null);
+  assert.equal(missing.implementation_cost_inr, 12000);
+  assert.equal(missing.upfront_classification, 'priced');
   const zero = calculateEconomics({ ...baseEconomics, tariff_inr_per_kwh: 0 });
   assert.equal(zero.status, 'available');
   assert.equal(zero.gross_savings_inr, 0);
@@ -38,9 +41,11 @@ test('missing tariff is unavailable while an explicit zero tariff is valid', () 
 test('explicit ₹2,000 monthly net savings supports six-month simple payback', () => {
   const result = calculateEconomics({ ...baseEconomics, supported_energy_reduction_kwh: 200, source_period_days: 30,
     projection_period_days: 30, projection_period_months: 1, tariff_inr_per_kwh: 10,
-    implementation_cost_inr: 12000, recurring_cost_inr: 0, recurring_cost_period_months: 1, recurring_savings_rate_supported: true });
+    implementation_cost_inr: 12000, recurring_cost_inr: 0, recurring_cost_period_months: 1,
+    supported_gross_recurring_savings_inr_per_month: 2000 });
   assert.equal(result.net_period_savings_inr, 2000);
   assert.equal(result.simple_payback_months, 6);
+  assert.equal(result.supported_net_recurring_savings_inr_per_month, 2000);
 });
 
 test('₹24,000 annual net savings and ₹12,000 upfront gives 100% period ROI', () => {
@@ -66,12 +71,26 @@ test('zero upfront cost is classified without infinite ROI; negative net savings
   const free = calculateEconomics({ ...baseEconomics, implementation_cost_inr: 0 });
   assert.equal(free.upfront_classification, 'zero_upfront_cost');
   assert.equal(free.period_roi_percent, null);
+  const freeWithRate = calculateEconomics({ ...baseEconomics, implementation_cost_inr: 0,
+    supported_gross_recurring_savings_inr_per_month: 10 });
+  assert.equal(freeWithRate.simple_payback_months, 0);
+  assert.ok(Number.isFinite(freeWithRate.simple_payback_months));
   const negative = calculateEconomics({ ...baseEconomics, implementation_cost_inr: 100, recurring_cost_inr: 2,
-    recurring_cost_period_months: 1, supported_energy_reduction_kwh: 0, source_period_days: 1 });
+    recurring_cost_period_months: 1, supported_energy_reduction_kwh: 0, source_period_days: 1,
+    supported_gross_recurring_savings_inr_per_month: 1 });
   assert.equal(negative.net_period_savings_inr, -2);
   assert.equal(negative.simple_payback_months, null);
   assert.equal(negative.payback_status, 'no_positive_net_savings');
   assert.equal(calculateEconomics({ ...baseEconomics, implementation_cost_inr: 12000 }).payback_status, 'rate_unavailable');
+});
+
+test('payback uses explicit monthly net savings after monthly recurring costs', () => {
+  const result = calculateEconomics({ ...baseEconomics, supported_energy_reduction_kwh: 200,
+    source_period_days: 30, projection_period_days: 30, projection_period_months: 1,
+    implementation_cost_inr: 12000, recurring_cost_inr: 500, recurring_cost_period_months: 1,
+    supported_gross_recurring_savings_inr_per_month: 2500 });
+  assert.equal(result.supported_net_recurring_savings_inr_per_month, 2000);
+  assert.equal(result.simple_payback_months, 6);
 });
 
 test('invalid nonfinite and negative monetary assumptions are rejected', () => {
@@ -79,13 +98,18 @@ test('invalid nonfinite and negative monetary assumptions are rejected', () => {
     assert.throws(() => calculateEconomics({ ...baseEconomics, implementation_cost_inr }), /implementation_cost_inr must be finite and nonnegative/);
   }
   assert.throws(() => calculateEconomics({ ...baseEconomics, tariff_inr_per_kwh: Number.NaN }), /tariff_inr_per_kwh/);
+  assert.throws(() => calculateEconomics({ ...baseEconomics, supported_gross_recurring_savings_inr_per_month: -1 }), /supported_gross_recurring_savings/);
+  assert.throws(() => calculateEconomics({ ...baseEconomics, supported_energy_reduction_kwh: 1e308,
+    tariff_inr_per_kwh: 1e308 }), /nonfinite result/);
+  assert.throws(() => calculateScenarioComparison({ ...comparison, original_energy_kwh: 1e308,
+    improved_energy_kwh: 0, tariff_inr_per_kwh: 1e308 }), /nonfinite monetary difference/);
 });
 
 test('ranking separates unequal projection periods and unknown costs', () => {
   const items: RankedRecommendation[] = [
-    { recommendation_id: 'a', projection_period_days: 30, currency: 'INR', assumptions_fingerprint: 'same', simple_payback_months: 5, upfront_cost_inr: 100, overlap_group: null },
-    { recommendation_id: 'b', projection_period_days: 365, currency: 'INR', assumptions_fingerprint: 'same', simple_payback_months: 2, upfront_cost_inr: 100, overlap_group: null },
-    { recommendation_id: 'c', projection_period_days: 30, currency: 'INR', assumptions_fingerprint: 'same', simple_payback_months: null, upfront_cost_inr: null, overlap_group: null },
+    { recommendation_id: 'a', projection_period_days: 30, projection_period_months: 1, currency: 'INR', assumptions_fingerprint: 'same', savings_supported: true, simple_payback_months: 5, upfront_cost_inr: 100, overlap_group: null },
+    { recommendation_id: 'b', projection_period_days: 365, projection_period_months: 12, currency: 'INR', assumptions_fingerprint: 'same', savings_supported: true, simple_payback_months: 2, upfront_cost_inr: 100, overlap_group: null },
+    { recommendation_id: 'c', projection_period_days: 30, projection_period_months: 1, currency: 'INR', assumptions_fingerprint: 'same', savings_supported: false, simple_payback_months: 2, upfront_cost_inr: 100, overlap_group: null },
   ];
   const result = rankRecommendations(items);
   assert.deepEqual(result.ranked_ids, []);
@@ -94,6 +118,7 @@ test('ranking separates unequal projection periods and unknown costs', () => {
   const sameBasis = [items[0]!, { ...items[0]!, recommendation_id: 'z', simple_payback_months: 5 }];
   assert.deepEqual(rankRecommendations(sameBasis).ranked_ids, ['a', 'z']);
   assert.deepEqual(rankRecommendations([...sameBasis].reverse()).ranked_ids, ['a', 'z']);
+  assert.deepEqual(rankRecommendations([{ ...items[0]!, projection_period_months: 0.5 }, items[0]!]).ranked_ids, []);
 });
 
 test('overlapping vacancy claims for one device are explicit conflicts, not additive totals', () => {
@@ -101,15 +126,19 @@ test('overlapping vacancy claims for one device are explicit conflicts, not addi
   const two = createRecommendation({ ...baseRecommendation, recommendation_id: 'vacancy-2', references: [{ ...baseRecommendation.references[0]!,
     finding_id: 'f2', start_utc: '2026-01-01T00:00:30Z', end_utc: '2026-01-01T00:02:00Z' }] });
   assert.deepEqual(detectOverlaps([one, two]), [['vacancy-1', 'vacancy-2']]);
+  const disjoint = createRecommendation({ ...baseRecommendation, recommendation_id: 'vacancy-disjoint', references: [{
+    ...baseRecommendation.references[0]!, finding_id: 'f3', start_utc: '2026-01-01T00:02:00Z', end_utc: '2026-01-01T00:03:00Z' }] });
+  assert.deepEqual(detectOverlaps([one, disjoint]), []);
 });
 
 const comparison: ScenarioComparisonInput = { comparison_id: 'same-id-alone-is-not-enough', original_energy_kwh: 100, improved_energy_kwh: 80,
   original_start_utc: '2026-01-01T00:00:00Z', original_end_utc: '2026-01-02T00:00:00Z',
   improved_start_utc: '2026-01-01T00:00:00Z', improved_end_utc: '2026-01-02T00:00:00Z',
   original_coverage_complete: true, improved_coverage_complete: true,
-  original_inventory_fingerprint: 'inventory', improved_inventory_fingerprint: 'inventory',
-  original_external_inputs_fingerprint: 'inputs', improved_external_inputs_fingerprint: 'inputs',
-  policy_assumption: 'same schedules except named change', intervention_assumption: 'replace lamp', tariff_inr_per_kwh: 10 };
+    original_inventory_fingerprint: 'inventory', improved_inventory_fingerprint: 'inventory',
+    original_external_inputs_fingerprint: 'inputs', improved_external_inputs_fingerprint: 'inputs',
+    original_policy_fingerprint: 'policy', improved_policy_fingerprint: 'policy', policy_difference_is_intended_intervention: false,
+    policy_assumption: 'same schedules except named change', intervention_assumption: 'replace lamp', tariff_inr_per_kwh: 10 };
 
 test('matched scenario delta preserves signs and calculates tariff difference', () => {
   const result = calculateScenarioComparison(comparison);
@@ -135,10 +164,33 @@ test('a shared comparison identifier cannot replace equal compared windows', () 
   assert.ok(result.verification_failures.includes('comparison_windows_not_matched'));
 });
 
+test('a changed intervention policy is verified only when declared as the controlled intervention', () => {
+  const allowed = calculateScenarioComparison({ ...comparison, improved_policy_fingerprint: 'policy-after',
+    policy_difference_is_intended_intervention: true });
+  assert.equal(allowed.status, 'verified');
+  const unexplained = calculateScenarioComparison({ ...comparison, improved_policy_fingerprint: 'policy-after',
+    policy_difference_is_intended_intervention: false });
+  assert.equal(unexplained.status, 'unverified');
+  assert.ok(unexplained.verification_failures.includes('policy_difference_not_declared_intervention'));
+});
+
+test('evidence windows must use explicit UTC timestamps', () => {
+  assert.throws(() => createRecommendation({ ...baseRecommendation, references: [{
+    ...baseRecommendation.references[0]!, start_utc: '2026-01-01T00:00:00+05:30' }] }), /positive UTC period/);
+  assert.throws(() => createRecommendation({ ...baseRecommendation, references: [{
+    ...baseRecommendation.references[0]!, start_utc: '2026-02-30T00:00:00Z' }] }), /positive UTC period/);
+});
+
 test('scenario recommendation savings require verified comparison status', () => {
   assert.throws(() => createRecommendation({ ...baseRecommendation, evidence_type: 'scenario_comparison' }), /require a verified comparison/);
   const verified = createRecommendation({ ...baseRecommendation, evidence_type: 'scenario_comparison', comparison_status: 'verified' });
   assert.equal(verified.evidence_type, 'scenario_comparison');
+});
+
+test('vacancy savings require persisted job and finding references', () => {
+  const unlinked = { dataset_id: 'd1', run_id: 'r1', device_id: 'lamp-1', room_id: 'room-1',
+    start_utc: '2026-01-01T00:00:00Z', end_utc: '2026-01-01T00:01:00Z' };
+  assert.throws(() => createRecommendation({ ...baseRecommendation, references: [unlinked] }), /job and finding references/);
 });
 
 test('calculations are deterministic and do not mutate their input objects', () => {

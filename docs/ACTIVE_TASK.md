@@ -24,9 +24,11 @@ Prepared only the standalone typed math module, focused tests, evidence and
 continuity documentation. No route/API, persistence, database/schema,
 application startup, dependency, shared contract or frontend changes.
 
-Status: partial. Six direct Node 24 runtime known-answer checks passed.
-Typecheck, lint and focused test runner could not start because `node_modules`
-are absent and dependencies are not available offline. Review pending.
+Status: blocked for the required compiler/linter/focused-test/build gates.
+Twenty-seven direct Node 24 runtime assertions against the module passed after
+targeted safeguards were added. Locked `npm ci` failed compiling
+`better-sqlite3`; no local typecheck, lint or `tsx` runner is available. Review
+pending.
 
 ## Checkpoint — 2026-09-25 02:07 +05:30
 
@@ -42,9 +44,32 @@ are absent and dependencies are not available offline. Review pending.
   Feature branch not pushed because deployment docs say a push may trigger
   deployment and do not explicitly establish non-deploying feature branches.
 
-## Exact next action
+## Checkpoint — 2026-09-25 02:35 +05:30
 
-Run typecheck, lint and `npx tsx --test test/P028_report_economics.test.ts`
-when existing dependencies are available; address findings, then integrate
-report API/UI in a separately scoped assignment. This module is not merged,
-exposed through the API or deployed.
+- Reviewed existing module against R1 categories; tightened monthly payback to
+  use an explicit supported gross recurring INR/month rate, subtracting monthly
+  recurring costs once. Added finite-result checks and preserved known upfront
+  cost in unavailable calculation results.
+- Ranking now requires savings support, finite known cost, assumption identity,
+  and equal days/months/currency/assumption basis. Tie-breaking uses stable
+  code-unit comparison. Scenario verification now requires policy provenance;
+  differing policy fingerprints are accepted only when explicitly declared
+  the intended intervention. Recommendation/economic UTC inputs reject
+  non-UTC timestamps.
+- Added tests for monthly recurring-cost payback, unsupported rank entries,
+  mixed economic periods, disjoint overlap, policy-difference handling,
+  invalid UTC, and unavailable-result cost preservation.
+- `npm ci`: exit 1. `node-gyp` could not find Visual Studio C++ workload while
+  building locked `better-sqlite3@13.0.3` (Python 3.13.15 was found).
+- `npm run typecheck`: exit 1 (`tsc` absent); `npm run lint`: exit 1 (`eslint`
+  absent); `npm exec --offline -- tsx --test
+  test/P028_report_economics.test.ts`: exit 1 (`ENOTCACHED`); `npm run build`:
+  exit 1 (`tsc` absent). Sixteen direct Node 24 type-stripping assertions
+  passed. `git diff --check` passed.
+- No install retry or security/script bypass. No generated dependencies will be
+  committed. No runtime service or database was started or changed.
+- Exact next action: Mohan provisions the Windows “Desktop development with
+  C++” workload, then runs `npm ci`, `npm run typecheck`, `npm run lint`,
+  `node_modules/.bin/tsx --test test/P028_report_economics.test.ts`, and
+  `npm run build` in this worktree. Fix compiler/test findings before review.
+  No push, merge, deployment, or API/UI implementation.
