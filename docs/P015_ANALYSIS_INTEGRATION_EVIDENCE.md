@@ -148,4 +148,6 @@ above. The real integration harness requires the existing
 `energy-ml-service/.venv/Scripts/python.exe` on this Windows workspace and does
 not install or update dependencies.
 
-No task-owned process remains running. Review remains pending.
+Feature implementation commit:
+`49b61fc079246ace1914ff640b3f292bbf3f86ca` on `main`. No task-owned process
+remains running. Review remains pending.

@@ -43,8 +43,10 @@
 - Additive clarification: the contract's generic analysis-job text says
   `succeeded`; this backend persists/returns `completed`, matching its existing
   SQLite status vocabulary and P015 lifecycle wording.
-- Implementation and continuity updates are published on `main`; review is
-  pending. Exact next action: review pending; stop after P015.
+- Feature implementation commit `49b61fc079246ace1914ff640b3f292bbf3f86ca`
+  is published on `origin/main`. Final continuity commit and remote hash are
+  recorded in the P015 evidence note; review is pending. Exact next action:
+  review pending; stop after P015.
 
 ## P006 F5-A addendum (2026-09-24; implemented, review pending)
 
