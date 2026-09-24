@@ -116,6 +116,33 @@ The existing JSON body bound returns `413 REQUEST_TOO_LARGE`.
 {"error":{"code":"UNSUPPORTED_INPUT","message":"Only completed vacancy analysis jobs support avoidable-energy reports","field":"job_id"}}
 ```
 
+Unknown dataset:
+
+```json
+{"error":{"code":"NOT_FOUND","message":"Dataset was not found"}}
+```
+
+Overlapping selected claims remain separate; this is the exact conflict item
+shape (IDs are the public `finding_id` values):
+
+```json
+{
+  "overlap_conflicts":[{
+    "recommendation_ids":["vacant_but_on:light-1:2026-09-21T03:30:00Z","vacant_but_on:light-1:2026-09-21T03:31:00Z"],
+    "handling":"Individual evidence is shown; conflicting recommendations are excluded from ranking and are not summed."
+  }],
+  "ranking":{"ranked_ids":[],"unranked_ids":["vacant_but_on:light-1:2026-09-21T03:30:00Z","vacant_but_on:light-1:2026-09-21T03:31:00Z"]}
+}
+```
+
+When no tariff is saved, preview still succeeds with tariff and tariff-derived
+economics unavailable (`null`); a saved zero tariff is returned and priced as
+zero:
+
+```json
+{"tariff":{"inr_per_kwh":null,"currency":null,"provenance":"unset"},"recommendations":[{"economics":{"status":"unavailable","unavailable_reason":"Supported energy, its source period and tariff are all required","gross_savings_inr":null,"period_roi_percent":null,"simple_payback_months":null,"tariff_inr_per_kwh":null}}]}
+```
+
 The report distinguishes measured/persisted inputs (dataset/job/finding IDs,
 windows, coverage, synthetic provenance and supported vacancy avoidable
 energy), derived values (tariff multiplication, economics formulas, overlap and

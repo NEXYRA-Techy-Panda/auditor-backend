@@ -40,6 +40,15 @@ deviations, not malfunctions or savings: they are never priced and never added
 to vacancy avoidable-energy totals. See
 [P026 device analysis](docs/P026_DEVICE_ANALYSIS_INTEGRATION_EVIDENCE.md).
 
+P028 adds the read-only `POST /api/v1/reports/preview`. It derives economics
+only from selected persisted vacancy findings and the current saved tariff;
+explicit investment assumptions remain labeled as assumptions. It adds no
+report-history table and does not treat forecasts or P026 deviations as
+savings. Selected overlaps are disclosed, not summed, and scenario matching
+remains unverified without external-input provenance. See
+[P028 backend evidence](docs/P028_BACKEND_REPORT_API_EVIDENCE.md) and
+[API examples](docs/AUDITOR_API_EXAMPLES.md).
+
 ## Setup and commands (Windows PowerShell or Linux shell; Node >= 24, npm)
 
 ```sh

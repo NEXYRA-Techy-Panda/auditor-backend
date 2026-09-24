@@ -598,8 +598,9 @@ correction entry; do not rewrite history.
   service restart, external tool install, benchmark, or training.
 - Evidence: `docs/P028_BACKEND_REPORT_API_EVIDENCE.md`; exact frontend response
   examples: `docs/AUDITOR_API_EXAMPLES.md`. Feature/merge commit
-  `c5db138d437280c77ae90c488ac067f8720b446e` is local and `origin/main`
-  (confirmed with `git ls-remote`). Git publication is confirmed; deployment
-  was not checked and no preview was submitted to production. Review pending.
+  `c5db138d437280c77ae90c488ac067f8720b446e` was pushed, followed by docs
+  closeout `b5aff642ca21ae294bee0733de8716a28daf7000`; `git ls-remote`
+  confirmed the latter as `origin/main`. Git publication is confirmed;
+  deployment was not checked and no preview was submitted to production. Review pending.
   Exact next action: M-A integrates this API in the separate frontend task;
   print verification and matched-scenario comparison remain follow-ups.

@@ -12,20 +12,20 @@
 - Main had no uncommitted work. Prepared branch `mohan/p028-report-math-prep`
   was integrated by a normal merge while retaining main's P026-R1 evidence,
   script fixes and detector-failure regression; prepared worktree remains.
-- Feature/merge commit: `c5db138d437280c77ae90c488ac067f8720b446e`.
-  `git ls-remote origin refs/heads/main` observed the same remote hash after
-  push. This confirms publication to Git only; deployment was not checked.
+- Feature/merge commit: `c5db138d437280c77ae90c488ac067f8720b446e`; it was
+  pushed as the `origin/main` head. Documentation closeout commit
+  `b5aff642ca21ae294bee0733de8716a28daf7000` was also pushed; `git ls-remote`
+  observed that remote hash afterward. These are Git publication observations;
+  deployment was not checked.
 - Main SQLite loaded in-memory successfully (SQLite 3.53.4). Scratch SQLite and
   loopback HTTP route checks passed; `npm test` 59/59; typecheck, lint, build,
   and `git diff --check` passed. No production database/request or service
-  restart. Normal push/deployment observation pending.
+  restart. Git publication is complete; deployment was not checked.
 - Exact next action: M-A integrates preview forms/sections in the separate
   frontend assignment; then verify print output. Matched-scenario comparison
   stays separate pending persisted external-input provenance.
 
-## Prior assignment / preserved history
-
-## Current assignment / Layer ID
+## Preserved previous assignment / Layer ID
 
 **P026-R1 — deployment recovery and detector integration verification**
 (follow-up to assignment 25 / approximately 29; approximately four further

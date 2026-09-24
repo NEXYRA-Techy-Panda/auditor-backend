@@ -82,16 +82,19 @@ assumptions requests, a successful response shape, errors, and measured /
 derived / assumed provenance. Key nesting is
 `data.recommendations[].evidence`, `data.recommendations[].economics`,
 `data.ranking.{ranked_ids,unranked_ids,overlap_conflicts}`,
-`data.overlap_conflicts[]`, and `data.scenario_comparison`. Finding IDs are
-stored `<job-id>:<finding-id>` strings; energy is kWh, monetary values INR,
+`data.overlap_conflicts[]`, and `data.scenario_comparison`. `finding_ids` uses
+the public `finding_id` value from analysis results and resolves it within the
+requested job/dataset; SQLite stores a job-prefixed primary key internally.
+Energy is kWh, monetary values INR,
 tariff INR/kWh, periods days/months, ROI percent, payback months.
 
 The merge preserved P026-R1's docs, harness changes, and failed-job regression;
 the prepared branch/worktree remains intact. Feature/merge commit
-`c5db138d437280c77ae90c488ac067f8720b446e` is both local `main` and the
-observed `origin/main` hash (`git ls-remote origin refs/heads/main`). This
-confirms Git publication only. No production preview or deployment check was
-performed; review remains pending. Exact next action: M-A wires
+`c5db138d437280c77ae90c488ac067f8720b446e` was pushed to `origin/main`;
+documentation closeout commit `b5aff642ca21ae294bee0733de8716a28daf7000` was
+also pushed, and `git ls-remote origin refs/heads/main` observed that hash.
+These confirm Git publication only. No production preview or deployment check
+was performed; review remains pending. Exact next action: M-A wires
 `POST /api/v1/reports/preview` into the existing
 report UI using these examples, then separately verifies print output and
 matched-scenario comparison only after external-input provenance exists.
