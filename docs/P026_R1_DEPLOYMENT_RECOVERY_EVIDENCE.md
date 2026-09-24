@@ -374,6 +374,20 @@ not run `pm2 kill`, and do not touch GIT-Pipeline or system Node.
   changes are tests plus one harness fix and documentation; **no new
   application release was needed**, so no deployment was triggered manually.
 
+### Post-commit record
+
+- Local implementation HEAD after this layer's commit:
+  `c884a19deb039d39e11acea1582cc0feb3da6f08`
+  (`test(analysis): verify the deployed detector interface and fix the P015
+  harness`); pushed `d0fcd09..c884a19` to `origin/main` without force.
+- Remote branch HEAD after push:
+  `c884a19deb039d39e11acea1582cc0feb3da6f08` (matched local; clean tree).
+- Post-push public observation at 2026-09-24 20:57:00Z (≈20 s after push):
+  `GET /auditor/api/v1/health` **200** (0.30 s), `GET
+  /auditor/api/v1/detectors` **200** (0.20 s) — no 502 observed after the push
+  either. This confirms the public service stayed healthy; it does **not**
+  prove which revision the deploy pipeline is running.
+
 ## 9. Files changed (task-owned)
 
 - Created: `docs/P026_R1_DEPLOYMENT_RECOVERY_EVIDENCE.md`.
