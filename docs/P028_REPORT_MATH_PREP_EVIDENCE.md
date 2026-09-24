@@ -7,6 +7,8 @@ Prepared on a separate worktree at `K:\NEXYRA-P028-report-math-prep`, branch
 `d0fcd092fa39ca17a7efbcdaeffd4e43bd1c2eb1`. This is newer than the reported
 deployment baseline `f3b8e2c8dac923957d91e1a55591abc7e03fe67c`; no working-tree
 changes from the owner branch were brought over.
+Implementation commit: `abab61321c723f2a2c8cf30392d64fabed496528` (local only;
+feature branch not pushed; review pending).
 
 ## Module surface
 

@@ -527,6 +527,10 @@ correction entry; do not rewrite history.
   feature branch push: committed deployment records say a push may trigger
   deployment, and no pipeline config explicitly establishes a safe feature
   branch rule.
-- Exact next action: inspect scoped changes, commit only task-owned files in
-  this isolated worktree, verify commit and original worktree remain clean.
+- Commit: `abab61321c723f2a2c8cf30392d64fabed496528`, local on
+  `mohan/p028-report-math-prep`. No feature push: project notes a push may
+  trigger deployment and no committed configuration explicitly says otherwise.
   Review pending.
+- Exact next action: run typecheck, lint and focused P028 tests when the
+  approved existing Node dependencies are available; later perform API/UI
+  integration as a separately scoped task.
