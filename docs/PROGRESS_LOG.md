@@ -355,3 +355,14 @@ correction entry; do not rewrite history.
   failed honestly. P013 reported `model_available:false`.
 - Exact next action: commit and push normally, verify local/remote `main`, then
   review pending; stop after P020.
+
+## 2026-09-24 — P020 M3 published
+
+- Feature commit `a7129f23873df9481fea249021d6a2599bcfd37d` was pushed normally
+  to `origin/main` (no force). At verification, `git ls-remote` matched local
+  `main`; a final continuity-only doc commit follows.
+- No contract, parent, or simulator repository was changed. The P013 source was
+  used from pinned commit `7f71363aa9361e67a0cb2815b98aee79b0708cf9`; the
+  Python sibling had separate concurrent work, which was left untouched.
+- Review remains pending. Exact next frontend action: implement forecast
+  submit/poll/result display in `auditor-frontend`; stop after P020.

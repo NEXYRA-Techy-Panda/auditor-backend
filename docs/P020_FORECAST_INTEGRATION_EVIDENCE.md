@@ -165,6 +165,10 @@ from energy and refresh it from the same GET after tariff edits; never label it
 as savings. Contract examples and the additive 202 polling clarification are
 in [AUDITOR_API_EXAMPLES.md](AUDITOR_API_EXAMPLES.md).
 
-Publication commit hashes will be added after normal push verification. Review
-remains pending. Exact next frontend action: implement the above forecast
+Feature implementation commit `a7129f23873df9481fea249021d6a2599bcfd37d` was
+pushed normally to `origin/main` without force. `git ls-remote` matched local
+`main` at verification; the final continuity-only documentation commit is
+recorded below after push. No task-owned process, temporary source copy or
+scratch database remains. Ports 4001 and 8000 have no listener. Review remains
+pending. Exact next frontend action: implement the above forecast
 submit/poll/result display in `auditor-frontend` as a separate task.

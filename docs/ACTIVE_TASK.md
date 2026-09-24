@@ -8,7 +8,7 @@ P013 commit `7f71363aa9361e67a0cb2815b98aee79b0708cf9`.
 
 ## Status
 
-- Task: completed; publication pending. Review: pending.
+- Task: completed and published. Review: pending.
 - Starting auditor HEAD `32d88beabc7d0e1d1a3fb7d26ae74117b4cce6ca` was clean on
   `main`, equal to `origin/main`.
 - P006 and P015 outcomes are preserved in `PROGRESS_LOG.md` and `HANDOFF.md`.
@@ -32,5 +32,6 @@ P013 commit `7f71363aa9361e67a0cb2815b98aee79b0708cf9`.
 - Real P013 HTTP check: 672 observed hours, 720 November points, 10.8 kWh,
   current tariff repricing, and a persisted insufficient-history failure.
 - Contract 75/75, schema 24/24, typecheck, lint, build and import HTTP regression
-  pass. Exact next action: inspect scope, commit and push without force, verify
-  remote `main`; review pending.
+  pass. Feature commit `a7129f23873df9481fea249021d6a2599bcfd37d` is pushed to
+  `origin/main`. Exact next action: implement forecast submit/poll/result UI in
+  `auditor-frontend` as a separate task; review pending, stop after P020.

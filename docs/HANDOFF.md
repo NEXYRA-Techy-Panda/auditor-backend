@@ -1,6 +1,6 @@
 # HANDOFF — auditor-backend
 
-## P020 M3 addendum (2026-09-24; implemented, publication pending, review pending)
+## P020 M3 addendum (2026-09-24; implemented and published, review pending)
 
 - Adds `POST /api/v1/forecasts` and `GET /api/v1/forecasts/:id`. The POST
   returns 202 with a forecast/job ID; the GET reports queued/running/completed/
@@ -27,9 +27,10 @@
 - Forecast energy is persisted independently of tariff. Current tariff cost
   is calculated on reads (`null` when unset, zero when rate zero); tariff edits
   never rerun Python. Synthetic provenance is copied when present.
-- Full checks and pinned P013 HTTP integration passed. Exact next action:
-  publish the audited changes normally and verify remote `main`; then review
-  pending, stop after P020.
+- Full checks and pinned P013 HTTP integration passed. Feature commit
+  `a7129f23873df9481fea249021d6a2599bcfd37d` is on `origin/main`. Exact next
+  frontend action: implement forecast submit/poll/result UI in
+  `auditor-frontend`; review pending, stop after P020.
 
 ## P015 F4/M2 addendum (2026-09-24; implemented and published, review pending)
 
