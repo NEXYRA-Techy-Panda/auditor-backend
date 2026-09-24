@@ -282,5 +282,5 @@ correction entry; do not rewrite history.
   `origin/main` without force. `git ls-remote` matched local HEAD; working tree
   was clean, port 4001 had no listener, and task-owned temp resources were
   removed.
-- Final continuity/hash update remains to publish. Review pending; stop after
-  P006.
+- Final continuity hash/status updates were then committed and pushed; final
+  remote/local hash verification followed. Review pending; stop after P006.
