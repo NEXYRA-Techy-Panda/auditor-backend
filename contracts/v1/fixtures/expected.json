@@ -46,5 +46,15 @@
     "fridge_per_minute_kwh": "300 W * 60 s / 3600000 = 0.005",
     "office_total_kwh": "2 * 0.01 + 2 * 0.005 = 0.03",
     "office_cost_inr": "0.03 kWh * Rs 10/kWh = Rs 0.30"
+  },
+  "rounding_budget": {
+    "note": "Exported kWh values carry up to 12 decimal places; internal accumulation is unrounded. This budget bounds the worst case of summing per-value-rounded exports.",
+    "export_dp_kwh": 12,
+    "load_w": 7.0,
+    "intervals": 44640,
+    "interval_seconds": 60,
+    "analytic_total_kwh": 5.208,
+    "max_per_value_error_kwh": 5e-13,
+    "budget_kwh": 2.232e-8
   }
 }

@@ -50,7 +50,7 @@ energy in kWh; money in INR with an explicit tariff.
 | `POST /environment` | Room climate | `{ "room_id", "temp_c": 26.5, "rh_pct": 55 }` → `{ "room_id", "seq" }` |
 | `POST /history/jobs` | Batch history build | `{ "from": "<utc>", "to": "<utc>", "interval_seconds": 60 }` → `{ "job_id" }` |
 | `GET /history/jobs/:id` | Job status | `{ "job_id", "status", "result_ref" }` |
-| `GET /export?format=csv\|json&from&to&interval_seconds` | File export | File download conforming to this contract |
+| `GET /export?format=csv\|json&from&to&interval_seconds` | File export | Self-contained file download conforming to this contract (CSV carries its metadata envelope on the first data row) |
 | `GET /snapshot?seq=` | Recovery snapshot | Full `GET /state` payload at latest seq |
 | `GET /history?from&to&room_id?` | Gap-fill readings | Paginated contract-shaped intervals |
 

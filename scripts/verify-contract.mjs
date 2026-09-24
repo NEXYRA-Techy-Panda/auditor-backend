@@ -3,9 +3,12 @@
 // Uses Node built-ins only (node:fs, node:path, node:crypto). No npm install.
 //
 // Scope: hand-calculated fixture totals, record identities/references, mirror
-// hashes, CSV/JSON parity, forbidden fault-label fields. This is NOT formal
-// JSON Schema conformance validation (no schema validator is run here);
-// formal validator integration belongs to F2.
+// hashes, CSV-alone reconstruction with full semantic parity against
+// reference.json, negative envelope/reference checks, export-precision and
+// rounding-budget checks, forbidden fault-label scan. This is NOT formal JSON
+// Schema conformance validation (no schema validator is run here); formal
+// validator integration belongs to F2. This is a contract-fixture utility,
+// not a production importer.
 
 import { readFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -14,13 +17,19 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const V1 = join(ROOT, 'contracts', 'v1');
-const TOL_KWH = 1e-9;
-const TOL_REL_POWER = 0.01;
+// Tolerances (CONTRACT.md §3.6): per-value 1e-9 kWh, totals scale with the
+// number of contributing intervals, V·I·pf triple is relative 1e-9,
+// CSV/JSON same-value comparison is 1e-12.
+const TOL_VALUE = 1e-9;
+const TOL_TOTAL = (n) => n * 1e-9;
+const TOL_TRIPLE_REL = 1e-9;
+const TOL_PARITY = 1e-12;
 const FORBIDDEN = [
   'fault_active', 'fault_type', 'fault_window', 'fault_windows',
   'injected_fault', 'expected_diagnosis', 'expected_finding',
   'is_fault', 'fault_label',
 ];
+const EXPECTED_HEADER = 'run_id,building_id,scenario_id,interval_start_utc,interval_end_utc,interval_seconds,room_id,room_occupancy_avg,room_occupancy_max,room_occupied_fraction,room_temp_c,room_rh_pct,device_id,avg_power_w,max_power_w,energy_kwh,cumulative_kwh,avg_voltage_v,avg_current_a,power_factor,on_fraction,override_seconds,vacant_on_seconds,offschedule_on_seconds,policy_ref,partial,meta_run';
 
 let failures = 0;
 let passes = 0;
@@ -51,13 +60,100 @@ function parseCsv(text) {
   if (field !== '' || row.length) { row.push(field); rows.push(row); }
   return rows.filter((r) => !(r.length === 1 && r[0] === ''));
 }
+const escCell = (v) => {
+  v = String(v);
+  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+};
+const fail = (code, message) => { throw { code, message }; };
+
+// Reconstruct the canonical dataset from CSV text ALONE. The oracle
+// (reference.json) is never consulted here; comparison happens afterwards.
+function reconstructFromCsv(csvText) {
+  const rows = parseCsv(csvText);
+  if (!rows.length || rows[0].join(',') !== EXPECTED_HEADER) fail('HEADER', 'header mismatch');
+  const H = rows[0];
+  const col = (r, n) => r[H.indexOf(n)];
+  const data = rows.slice(1);
+  if (!data.length) fail('NO_ROWS', 'no data rows');
+  const envIdx = data.map((r, i) => (col(r, 'meta_run').trim() !== '' ? i : -1)).filter((i) => i >= 0);
+  if (!envIdx.length) fail('MISSING_ENVELOPE', 'no metadata envelope');
+  if (envIdx.length > 1) fail('MULTIPLE_ENVELOPES', `${envIdx.length} envelopes`);
+  if (envIdx[0] !== 0) fail('ENVELOPE_NOT_FIRST', `envelope on data row ${envIdx[0] + 1}`);
+  let env;
+  try { env = JSON.parse(col(data[0], 'meta_run')); }
+  catch { fail('ENVELOPE_UNPARSEABLE', 'meta_run is not JSON'); }
+  if (env.schema_version !== '1.0.0') fail('UNSUPPORTED_VERSION', String(env.schema_version));
+  for (const k of ['building', 'run', 'export', 'rooms', 'devices', 'policies']) {
+    if (env[k] == null) fail('ENVELOPE_INCOMPLETE', `missing ${k}`);
+  }
+  const roomById = new Map(env.rooms.map((r) => [r.room_id, r]));
+  const devById = new Map(env.devices.map((d) => [d.device_id, d]));
+  const polByKey = new Map(env.policies.map((p) => [`${p.policy_id}:${p.version}`, p]));
+  const num = (r, n) => {
+    const v = Number(col(r, n));
+    if (!Number.isFinite(v)) fail('BAD_NUMBER', `${n}=${col(r, n)}`);
+    return v;
+  };
+  const roomGroups = new Map();
+  const seenDeviceKeys = new Map();
+  const device_intervals = [];
+  for (const r of data) {
+    const device_id = col(r, 'device_id');
+    const room_id = col(r, 'room_id');
+    if (!devById.has(device_id)) fail('UNKNOWN_DEVICE', device_id);
+    if (!roomById.has(room_id)) fail('UNKNOWN_ROOM', room_id);
+    if (col(r, 'run_id') !== env.run.run_id || col(r, 'building_id') !== env.building.building_id ||
+        col(r, 'scenario_id') !== env.run.scenario_id) fail('ID_MISMATCH', `${device_id}@${col(r, 'interval_start_utc')}`);
+    const policy_ref = col(r, 'policy_ref');
+    if (!/^[A-Za-z0-9_-]+:[0-9]+$/.test(policy_ref) || !polByKey.has(policy_ref)) fail('UNKNOWN_POLICY_REF', policy_ref);
+    const rk = `${room_id}|${col(r, 'interval_start_utc')}`;
+    const roomVals = {
+      occupancy_avg: num(r, 'room_occupancy_avg'), occupancy_max: num(r, 'room_occupancy_max'),
+      occupied_fraction: num(r, 'room_occupied_fraction'), avg_temp_c: num(r, 'room_temp_c'), avg_rh_pct: num(r, 'room_rh_pct'),
+    };
+    if (roomGroups.has(rk)) {
+      const prev = roomGroups.get(rk);
+      if (JSON.stringify(prev) !== JSON.stringify(roomVals)) fail('CONFLICTING_ROOM_VALUES', rk);
+    } else roomGroups.set(rk, roomVals);
+    const b = (n) => col(r, n) === 'true';
+    const dk = `${col(r, 'run_id')}|${device_id}|${col(r, 'interval_start_utc')}`;
+    const rec = {
+      run_id: col(r, 'run_id'), room_id, device_id,
+      interval_start_utc: col(r, 'interval_start_utc'), interval_end_utc: col(r, 'interval_end_utc'),
+      interval_seconds: num(r, 'interval_seconds'), avg_power_w: num(r, 'avg_power_w'), max_power_w: num(r, 'max_power_w'),
+      energy_kwh: num(r, 'energy_kwh'), cumulative_kwh: num(r, 'cumulative_kwh'),
+      avg_voltage_v: col(r, 'avg_voltage_v') === '' ? undefined : num(r, 'avg_voltage_v'),
+      avg_current_a: col(r, 'avg_current_a') === '' ? undefined : num(r, 'avg_current_a'),
+      power_factor: num(r, 'power_factor'), on_fraction: num(r, 'on_fraction'),
+      override_seconds: num(r, 'override_seconds'), vacant_on_seconds: num(r, 'vacant_on_seconds'),
+      offschedule_on_seconds: num(r, 'offschedule_on_seconds'), policy_ref, partial: b('partial'),
+    };
+    if (seenDeviceKeys.has(dk)) {
+      if (JSON.stringify(seenDeviceKeys.get(dk)) !== JSON.stringify(rec)) fail('CONFLICTING_DUPLICATE', dk);
+    } else { seenDeviceKeys.set(dk, rec); device_intervals.push(rec); }
+  }
+  const room_intervals = [...roomGroups.entries()].map(([rk, v]) => {
+    const [room_id, interval_start_utc] = rk.split('|');
+    const src = data.find((r) => col(r, 'room_id') === room_id && col(r, 'interval_start_utc') === interval_start_utc);
+    return {
+      run_id: col(src, 'run_id'), room_id, interval_start_utc,
+      interval_end_utc: col(src, 'interval_end_utc'), interval_seconds: Number(col(src, 'interval_seconds')),
+      ...v, partial: col(src, 'partial') === 'true',
+    };
+  });
+  return {
+    schema_version: env.schema_version, source: env.source, synthetic: env.synthetic,
+    synthetic_label: env.synthetic_label, building: env.building, run: env.run, export: env.export,
+    rooms: env.rooms, devices: env.devices, policies: env.policies, room_intervals, device_intervals,
+  };
+}
 
 // ---- load ----
 const refPath = join(V1, 'fixtures', 'reference.json');
-const expPath = join(V1, 'fixtures', 'reference.csv');
+const csvPath = join(V1, 'fixtures', 'reference.csv');
 const exptPath = join(V1, 'fixtures', 'expected.json');
 const manPath = join(V1, 'manifest.json');
-for (const [n, p] of [['reference.json', refPath], ['reference.csv', expPath], ['expected.json', exptPath], ['manifest.json', manPath]]) {
+for (const [n, p] of [['reference.json', refPath], ['reference.csv', csvPath], ['expected.json', exptPath], ['manifest.json', manPath]]) {
   check(`artifact present: ${n}`, existsSync(p));
 }
 if (failures) { console.log(`\nRESULT: ${failures} failure(s). Semantic checks only; not formal schema validation.`); process.exit(1); }
@@ -66,7 +162,7 @@ const ref = JSON.parse(readFileSync(refPath, 'utf8'));
 const exp = JSON.parse(readFileSync(exptPath, 'utf8'));
 const man = JSON.parse(readFileSync(manPath, 'utf8'));
 const refRaw = readFileSync(refPath, 'utf8');
-const csvRaw = readFileSync(expPath, 'utf8');
+const csvRaw = readFileSync(csvPath, 'utf8');
 
 // ---- versions ----
 check('schema_version is 1.0.0', ref.schema_version === '1.0.0', ref.schema_version);
@@ -75,38 +171,35 @@ check('manifest contract_version is 1.0.0', man.contract_version === '1.0.0');
 check('source is simulation', ref.source === 'simulation');
 check('fixture marked synthetic', ref.synthetic === true && typeof ref.synthetic_label === 'string');
 
-// ---- hand-calculated totals ----
+// ---- hand-calculated totals (tolerances scale with interval count) ----
 const byDevice = {};
 for (const d of ref.device_intervals) {
-  byDevice[d.device_id] = byDevice[d.device_id] || { energy: 0, last: null };
+  byDevice[d.device_id] = byDevice[d.device_id] || { energy: 0, n: 0, last: null };
   byDevice[d.device_id].energy += d.energy_kwh;
+  byDevice[d.device_id].n += 1;
   byDevice[d.device_id].last = d;
 }
-check('light-a total is 0.02 kWh', approx(byDevice['light-a'].energy, 0.02, TOL_KWH), byDevice['light-a']?.energy);
-check('fridge-b total is 0.01 kWh', approx(byDevice['fridge-b'].energy, 0.01, TOL_KWH), byDevice['fridge-b']?.energy);
+check('light-a total is 0.02 kWh', approx(byDevice['light-a'].energy, 0.02, TOL_TOTAL(2)), byDevice['light-a']?.energy);
+check('fridge-b total is 0.01 kWh', approx(byDevice['fridge-b'].energy, 0.01, TOL_TOTAL(2)), byDevice['fridge-b']?.energy);
 const office = Object.values(byDevice).reduce((s, v) => s + v.energy, 0);
-check('office total is 0.03 kWh', approx(office, 0.03, TOL_KWH), office);
-check('final cumulative light-a is 0.02', approx(byDevice['light-a'].last.cumulative_kwh, 0.02, TOL_KWH));
-check('final cumulative fridge-b is 0.01', approx(byDevice['fridge-b'].last.cumulative_kwh, 0.01, TOL_KWH));
-// Counter reconciliation: cumulative(end_n) - cumulative(end_{n-1}) == energy_n.
+check('office total is 0.03 kWh', approx(office, 0.03, TOL_TOTAL(4)), office);
+check('final cumulative light-a is 0.02', approx(byDevice['light-a'].last.cumulative_kwh, 0.02, TOL_VALUE));
+check('final cumulative fridge-b is 0.01', approx(byDevice['fridge-b'].last.cumulative_kwh, 0.01, TOL_VALUE));
 for (const [id, v] of Object.entries(byDevice)) {
   const rows = ref.device_intervals.filter((d) => d.device_id === id)
     .sort((a, b) => (a.interval_start_utc < b.interval_start_utc ? -1 : 1));
   let prev = 0;
   rows.forEach((r, i) => {
-    check(`counter reconciliation ${id} interval ${i + 1}`, approx(r.cumulative_kwh - prev, r.energy_kwh, 1e-6), `${r.cumulative_kwh} - ${prev} != ${r.energy_kwh}`);
+    check(`counter reconciliation ${id} interval ${i + 1}`, approx(r.cumulative_kwh - prev, r.energy_kwh, TOL_VALUE), `${r.cumulative_kwh} - ${prev} != ${r.energy_kwh}`);
     prev = r.cumulative_kwh;
   });
 }
-// Reaggregation to one 120 s bucket preserves 0.03 kWh.
-check('120 s reaggregation preserves 0.03 kWh', approx(office, exp.reaggregation_120s_kwh.office, TOL_KWH));
-// Tariff: 0.03 kWh * Rs 10 = Rs 0.30.
-check('tariff cost is Rs 0.30', approx(office * exp.tariff.inr_per_kwh, exp.tariff.office_cost_inr, TOL_KWH));
-// expected.json totals mirror recomputation.
+check('120 s reaggregation preserves 0.03 kWh', approx(office, exp.reaggregation_120s_kwh.office, TOL_TOTAL(4)));
+check('tariff cost is Rs 0.30', approx(office * exp.tariff.inr_per_kwh, exp.tariff.office_cost_inr, TOL_TOTAL(4)));
 check('expected totals match recomputation',
-  approx(exp.totals_kwh['light-a'], 0.02, TOL_KWH) &&
-  approx(exp.totals_kwh['fridge-b'], 0.01, TOL_KWH) &&
-  approx(exp.totals_kwh.office, 0.03, TOL_KWH));
+  approx(exp.totals_kwh['light-a'], 0.02, TOL_VALUE) &&
+  approx(exp.totals_kwh['fridge-b'], 0.01, TOL_VALUE) &&
+  approx(exp.totals_kwh.office, 0.03, TOL_VALUE));
 
 // ---- identities and references ----
 const roomIds = new Set(ref.rooms.map((r) => r.room_id));
@@ -116,28 +209,24 @@ check('device rooms exist', ref.devices.every((d) => roomIds.has(d.room_id)));
 check('interval rooms/devices exist',
   ref.device_intervals.every((d) => devIds.has(d.device_id) && roomIds.has(d.room_id)) &&
   ref.room_intervals.every((r) => roomIds.has(r.room_id)));
-check('policy refs resolve', ref.device_intervals.every((d) => polKeys.has(d.policy_ref)), ref.device_intervals.map((d) => d.policy_ref).join(','));
+check('policy refs resolve', ref.device_intervals.every((d) => polKeys.has(d.policy_ref)));
 const dKeys = ref.device_intervals.map((d) => `${d.run_id}|${d.device_id}|${d.interval_start_utc}`);
 const rKeys = ref.room_intervals.map((r) => `${r.run_id}|${r.room_id}|${r.interval_start_utc}`);
 check('device interval keys unique', new Set(dKeys).size === dKeys.length);
 check('room interval keys unique', new Set(rKeys).size === rKeys.length);
 check('single run_id throughout', new Set([...ref.device_intervals, ...ref.room_intervals].map((r) => r.run_id)).size === 1);
-// Half-open contiguity per device.
 for (const id of devIds) {
   const rows = ref.device_intervals.filter((d) => d.device_id === id)
     .sort((a, b) => (a.interval_start_utc < b.interval_start_utc ? -1 : 1));
-  const contiguous = rows.every((r, i) => i === 0 || rows[i - 1].interval_end_utc === r.interval_start_utc);
-  check(`intervals contiguous for ${id}`, contiguous);
+  check(`intervals contiguous for ${id}`, rows.every((r, i) => i === 0 || rows[i - 1].interval_end_utc === r.interval_start_utc));
 }
-// Energy formula spot-check: energy_kwh == avg_power_w * seconds / 3600000.
-check('energy formula holds on all device intervals',
-  ref.device_intervals.every((d) => approx(d.energy_kwh, (d.avg_power_w * d.interval_seconds) / 3600000, 1e-6)));
-// V/I/pf spot-check within 1% (exact equality not required).
-check('V*I*pf within 1% of avg power',
+check('energy formula holds on all device intervals (1e-9)',
+  ref.device_intervals.every((d) => approx(d.energy_kwh, (d.avg_power_w * d.interval_seconds) / 3600000, TOL_VALUE)));
+check('V*I*pf triple exact (rel 1e-9) wherever reported',
   ref.device_intervals.every((d) => {
     if (d.avg_voltage_v == null || d.avg_current_a == null) return true;
     const p = d.avg_voltage_v * d.avg_current_a * d.power_factor;
-    return Math.abs(p - d.avg_power_w) / d.avg_power_w <= TOL_REL_POWER;
+    return Math.abs(p - d.avg_power_w) / d.avg_power_w <= TOL_TRIPLE_REL;
   }));
 
 // ---- manifest hashes ----
@@ -149,43 +238,86 @@ for (const f of man.files) {
     existsSync(p) ? `got ${sha256(p).slice(0, 12)}… want ${String(f.sha256).slice(0, 12)}…` : 'missing');
 }
 
-// ---- CSV parity ----
-const EXPECTED_HEADER = 'run_id,building_id,scenario_id,interval_start_utc,interval_end_utc,interval_seconds,room_id,room_occupancy_avg,room_occupancy_max,room_occupied_fraction,room_temp_c,room_rh_pct,device_id,avg_power_w,max_power_w,energy_kwh,cumulative_kwh,avg_voltage_v,avg_current_a,power_factor,on_fraction,override_seconds,vacant_on_seconds,offschedule_on_seconds,policy_ref,partial,meta_run,meta_policy';
-const rows = parseCsv(csvRaw);
-check('CSV header exact', rows[0].join(',') === EXPECTED_HEADER, rows[0].join(','));
-check('CSV has 4 data rows', rows.length === 5, `got ${rows.length - 1}`);
-const H = rows[0];
-const col = (r, n) => r[H.indexOf(n)];
-const num = (r, n) => Number(col(r, n));
-let parity = true;
-const metas = new Set();
-for (const r of rows.slice(1)) {
-  const key = `${col(r, 'interval_start_utc')}|${col(r, 'device_id')}`;
-  const j = ref.device_intervals.find((d) => `${d.interval_start_utc}|${d.device_id}` === key);
-  if (!j) { parity = false; console.log(`FAIL  CSV row has no JSON match: ${key}`); failures++; continue; }
-  const room = ref.room_intervals.find((x) => x.room_id === j.room_id && x.interval_start_utc === j.interval_start_utc);
-  const fields = ['avg_power_w', 'max_power_w', 'energy_kwh', 'cumulative_kwh', 'avg_voltage_v', 'avg_current_a', 'power_factor', 'on_fraction', 'override_seconds', 'vacant_on_seconds', 'offschedule_on_seconds'];
-  for (const f of fields) {
-    if (!approx(num(r, f), j[f], TOL_KWH)) { parity = false; console.log(`FAIL  CSV/JSON mismatch ${key} ${f}: csv=${num(r, f)} json=${j[f]}`); failures++; }
+// ---- CSV-alone reconstruction + full semantic parity (oracle: reference.json) ----
+const numEq = (a, b) => approx(a, b, TOL_PARITY);
+function objEq(a, b, path, errs) {
+  if (typeof a === 'number' && typeof b === 'number') { if (!numEq(a, b)) errs.push(`${path}: ${a} != ${b}`); return; }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) { errs.push(`${path}: length ${a.length} != ${b.length}`); return; }
+    a.forEach((v, i) => objEq(v, b[i], `${path}[${i}]`, errs)); return;
   }
-  for (const [cn, jn] of [['room_occupancy_avg', 'occupancy_avg'], ['room_occupancy_max', 'occupancy_max'], ['room_occupied_fraction', 'occupied_fraction'], ['room_temp_c', 'avg_temp_c'], ['room_rh_pct', 'avg_rh_pct']]) {
-    if (!approx(num(r, cn), room[jn], TOL_KWH)) { parity = false; console.log(`FAIL  CSV/JSON room mismatch ${key} ${cn}`); failures++; }
+  if (a && b && typeof a === 'object' && typeof b === 'object') {
+    const ka = Object.keys(a).filter((k) => a[k] !== undefined).sort();
+    const kb = Object.keys(b).filter((k) => b[k] !== undefined).sort();
+    if (ka.join(',') !== kb.join(',')) { errs.push(`${path}: keys ${ka} != ${kb}`); return; }
+    ka.forEach((k) => objEq(a[k], b[k], `${path}.${k}`, errs)); return;
   }
-  if (col(r, 'policy_ref') !== j.policy_ref || col(r, 'partial') !== String(j.partial)) { parity = false; console.log(`FAIL  CSV/JSON ref mismatch ${key}`); failures++; }
-  metas.add(col(r, 'meta_run'));
-  try {
-    const mp = JSON.parse(col(r, 'meta_policy'));
-    if (mp.device !== j.policy_ref) { parity = false; console.log(`FAIL  meta_policy device mismatch ${key}`); failures++; }
-  } catch { parity = false; console.log(`FAIL  meta_policy not JSON: ${key}`); failures++; }
+  if (a !== b) errs.push(`${path}: ${JSON.stringify(a)} != ${JSON.stringify(b)}`);
 }
-if (parity) { passes++; console.log('PASS  CSV/JSON row parity (keyed, tolerance 1e-9)'); }
-check('meta_run identical on all rows', metas.size === 1, `${metas.size} variants`);
+let recon = null;
 try {
-  const mr = JSON.parse([...metas][0]);
-  check('meta_run matches JSON export identity',
-    mr.run_id === ref.run.run_id && mr.export_id === ref.export.export_id &&
-    mr.schema_version === '1.0.0' && mr.source === 'simulation');
-} catch { check('meta_run matches JSON export identity', false, 'unparseable'); }
+  recon = reconstructFromCsv(csvRaw);
+  check('CSV-alone reconstruction succeeds', true);
+} catch (e) {
+  check('CSV-alone reconstruction succeeds', false, e.code || e.message);
+}
+if (recon) {
+  const errs = [];
+  for (const k of ['schema_version', 'source', 'synthetic', 'synthetic_label']) objEq(recon[k], ref[k], k, errs);
+  for (const k of ['building', 'run', 'export']) objEq(recon[k], ref[k], k, errs);
+  const keyed = (arr, k) => new Map(arr.map((o) => [typeof k === 'function' ? k(o) : o[k], o]));
+  for (const [name, ka, kb] of [
+    ['rooms', keyed(recon.rooms, 'room_id'), keyed(ref.rooms, 'room_id')],
+    ['devices', keyed(recon.devices, 'device_id'), keyed(ref.devices, 'device_id')],
+    ['policies', keyed(recon.policies, (p) => `${p.policy_id}:${p.version}`), keyed(ref.policies, (p) => `${p.policy_id}:${p.version}`)],
+    ['room_intervals', keyed(recon.room_intervals, (r) => `${r.room_id}|${r.interval_start_utc}`), keyed(ref.room_intervals, (r) => `${r.room_id}|${r.interval_start_utc}`)],
+    ['device_intervals', keyed(recon.device_intervals, (d) => `${d.device_id}|${d.interval_start_utc}`), keyed(ref.device_intervals, (d) => `${d.device_id}|${d.interval_start_utc}`)],
+  ]) {
+    if (ka.size !== kb.size) { errs.push(`${name}: ${ka.size} != ${kb.size}`); continue; }
+    for (const [k, v] of ka) {
+      if (!kb.has(k)) { errs.push(`${name}: missing ${k}`); continue; }
+      objEq(v, kb.get(k), `${name}.${k}`, errs);
+    }
+  }
+  check('reconstructed dataset matches reference.json semantically', !errs.length, errs.slice(0, 5).join('; '));
+  const envCount = parseCsv(csvRaw).slice(1).filter((r) => r[parseCsv(csvRaw)[0].indexOf('meta_run')].trim() !== '').length;
+  check('exactly one metadata envelope, on the first data row', envCount === 1);
+}
+
+// ---- negative checks (mutated CSV must fail with the expected code) ----
+{
+  const rows = parseCsv(csvRaw);
+  const H = rows[0];
+  const mi = H.indexOf('meta_run');
+  const pi = H.indexOf('policy_ref');
+  const ti = H.indexOf('room_temp_c');
+  const ser = (rs) => rs.map((r) => r.map(escCell).join(',')).join('\n') + '\n';
+  const cases = [
+    ['missing envelope fails', (rs) => rs.map((r, i) => (i ? [...r.slice(0, mi), ''] : r)), 'MISSING_ENVELOPE'],
+    ['multiple envelopes fail', (rs) => rs.map((r, i) => (i === 2 ? [...r.slice(0, mi), rs[1][mi]] : r)), 'MULTIPLE_ENVELOPES'],
+    ['unknown policy ref fails', (rs) => rs.map((r, i) => (i === 2 ? [...r.slice(0, pi), 'pol-nope:9', ...r.slice(pi + 1)] : r)), 'UNKNOWN_POLICY_REF'],
+    ['conflicting room values fail', (rs) => [...rs, [...rs[2].slice(0, ti), '99.9', ...rs[2].slice(ti + 1)]], 'CONFLICTING_ROOM_VALUES'],
+  ];
+  for (const [name, mutate, code] of cases) {
+    try {
+      reconstructFromCsv(ser(mutate(rows)));
+      check(`negative: ${name}`, false, 'reconstruction unexpectedly succeeded');
+    } catch (e) {
+      check(`negative: ${name}`, e.code === code, `got ${e.code || e.message}, want ${code}`);
+    }
+  }
+}
+
+// ---- rounding budget (in-memory 7 W / 44,640-interval check) ----
+{
+  const RB = exp.rounding_budget;
+  const e = (RB.load_w * RB.interval_seconds) / 3600000;
+  let acc = 0, accRounded = 0;
+  for (let i = 0; i < RB.intervals; i++) { acc += e; accRounded += Math.round(e * 1e12) / 1e12; }
+  check('analytic total matches expectation', approx((RB.load_w * RB.interval_seconds * RB.intervals) / 3600000, RB.analytic_total_kwh, 1e-12));
+  check('rounded-interval sums stay within budget', approx(accRounded, RB.analytic_total_kwh, RB.budget_kwh), `|${accRounded} - ${RB.analytic_total_kwh}|`);
+  check('unrounded accumulation is sane', approx(acc, RB.analytic_total_kwh, 1e-9));
+}
 
 // ---- forbidden fields ----
 const blob = `${refRaw}\n${csvRaw}`;

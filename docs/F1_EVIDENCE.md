@@ -55,3 +55,15 @@ coordinated updates required for later changes.
 
 Authorised by F1 ("docs: establish foundation and v1 data contracts").
 Recorded in the F1 evidence report with verified remote hashes.
+
+---
+
+## F1-R1 corrections (2026-09-24, review pending; version stays 1.0.0)
+
+- Corrected mirror received: self-contained envelope CSV, 12 dp precision +
+  consistent tolerances, extended verifier (reconstruction parity, 4 negative
+  checks, rounding budget).
+- Final: 54 passed, 0 failed in all five repos (built-ins only; formal schema
+  validation still F2). Mirror hashes match the regenerated manifest.
+- Repo-local git identity configured.
+- Commit/push outcome recorded in the F1-R1 evidence report.

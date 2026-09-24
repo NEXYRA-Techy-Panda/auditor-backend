@@ -2,17 +2,16 @@
 
 ## Layer ID
 
-F1
+F1-R1
 
 ## Objective
 
-Define shared contract v1.0.0 (canonical in simulation-backend, mirrored to
-siblings) with known-answer fixtures and dependency-free verification.
-Design only — no application code.
+Targeted pre-acceptance corrections to contract v1.0.0 (mirrored to this
+repo). No F2.
 
 ## Task status
 
-blocked
+completed
 
 ## Review status
 
@@ -25,58 +24,47 @@ pending
 
 ## Current branch
 
-`main` (verified; commit + push authorised by F1)
+`main` (F1 `24d459d` pushed; F1-R1 commit + push authorised, identity
+repo-local)
 
 ## Last checkpoint timestamp, including timezone
 
-2026-09-24 18:29:39 +05:30 (IST) — F1 contract work complete and verified;
-commit/push BLOCKED on missing git identity (asked twice, no values supplied).
+2026-09-24 18:43:07 +05:30 (IST) — F1-R1 complete; committing and pushing.
 
 ## Applicable contract version
 
-1.0.0 (defined; mirror under `contracts/v1/`).
+1.0.0 retained (pre-acceptance correction; not published).
 
 ## Completed steps
 
-1. Continuity startup + F0.1 preservation + Python verification (auditor Node
-   work independent; Python for F4 integration only).
-2. Contract mirror received + verified 49/49 (all five repos).
-3. Continuity docs: HANDOFF F1 addendum, prompt push-policy, README links,
-   docs/F1_EVIDENCE.md.
+1. F1-R1 startup, identity, checkpoints.
+2. Corrected mirror received + verified 54/54 (all five repos).
+3. Continuity: HANDOFF addendum, log entries, F1_EVIDENCE section.
 4. Staged-file inspection: task-owned files only.
 
 ## Files changed
 
-- Created: `contracts/v1/` (7 files), `scripts/verify-contract.mjs`,
-  `.gitignore`, `docs/F1_EVIDENCE.md` (+ F0/F0.1 docs as reviewed foundation).
-- Updated in F1: `docs/ACTIVE_TASK.md`, `docs/PROGRESS_LOG.md`,
-  `docs/HANDOFF.md`, `docs/AGENT_START_PROMPT.md`, `README.md`.
-- Preserved: `docs/PROJECT_CONTEXT.md`, `docs/WORKSPACE_MAP.md`.
+- Updated via mirror: `contracts/v1/` (7 files), `scripts/verify-contract.mjs`.
+- Updated: `docs/ACTIVE_TASK.md`, `docs/PROGRESS_LOG.md`, `docs/HANDOFF.md`,
+  `docs/F1_EVIDENCE.md`.
+- Preserved: shared context, prompts, README.
 
 ## Verification performed and actual results
 
-- Verify script 49 passed / 0 failed in all five repos. Semantic checks only.
-  No implementation artifacts.
+- 54 passed / 0 failed (final run post-mirror). Semantic checks only.
 
 ## Incomplete edits and uncommitted changes
 
-- None incomplete. Committing now with
-  "docs: establish foundation and v1 data contracts".
+- None incomplete. Committing now.
 
 ## Blockers or unknowns
 
-- BLOCKED: no git user.name/user.email (commit failed exit 128 in
-  simulation-backend). Mohan asked twice; no values supplied, none configured,
-  none invented. No commits exist; push auth untested. This repo fully
-  untracked. Remediation: configure identity, add, commit, push per repo,
-  verify hashes.
+- None. Push auth to be confirmed at push time.
 
 ## Exact next action
 
-Mohan: configure git identity, then per repo `git add`, commit ("docs:
-establish foundation and v1 data contracts"), `git push -u origin main`,
-verify remote hashes; then return F1 evidence for architecture review;
-do not begin F2 until its prompt is supplied.
+Commit corrected bundle, push `main` to origin, verify remote hash; then
+return F1-R1 evidence; do not begin F2 until its prompt is supplied.
 
 ## Related-repository dependencies
 
@@ -85,4 +73,5 @@ Siblings: 3000/4000/3001. This repo's port: 4001.
 
 ## Commit reference
 
-To be recorded in the F1 evidence report after push (no hash loop in docs).
+F1: `24d459d1bdf9b82ff2e2eb52fd754da9cf3bd7ba` (pushed, verified).
+F1-R1: recorded after push (no hash loop in docs).

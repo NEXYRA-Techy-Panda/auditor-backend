@@ -119,3 +119,27 @@ correction entry; do not rewrite history.
   "docs: establish foundation and v1 data contracts"`, `git push -u origin
   main`, verifying each remote hash. No force-push.
 - Task status set to blocked (commit/push step only); review pending.
+
+---
+
+## 2026-09-24 18:37:52 +05:30 (IST) — F1-R1 started (actual)
+
+- Layer ID: F1-R1 (targeted pre-acceptance corrections, mirror repo). F1
+  implementation completed; architecture review: changes_requested.
+- Prior publishing resolved: F1 committed + pushed in all five repos.
+- Objective: receive corrected mirrors (self-contained CSV; 12 dp precision +
+  tolerances; extended verifier). Version stays 1.0.0. No F2.
+- Startup: no AGENTS.md; clean tree at F1 commit; repo-local identity set.
+- Next action: corrections authored in `simulation-backend`, then mirrored here.
+- Review status: pending. Commit references: F1 pushed (see ACTIVE_TASK).
+
+---
+
+## 2026-09-24 18:43:07 +05:30 (IST) — F1-R1 completed (actual)
+
+- Corrected mirror received and verified 54/54 (all five repos).
+- Continuity updated: ACTIVE_TASK completed, HANDOFF F1-R1 addendum,
+  F1_EVIDENCE F1-R1 section. Review pending; no approval claimed.
+- Next action: commit, push `main`, verify remote hash; return F1-R1 evidence.
+  Do not begin F2.
+- Commit references: F1 pushed; F1-R1 recorded after push.

@@ -172,8 +172,12 @@ available resolution.
 
 - Single-phase instantaneous (simplified): `P = V × I × power_factor`.
 - Interval energy: `energy_kwh = avg_power_w × interval_seconds / 3600000`.
-- Do NOT require `avg_voltage × avg_current × pf == avg_power` when conditions
-  varied inside the interval; allow 1% relative deviation.
+- When `avg_voltage_v`, `avg_current_a`, and `power_factor` are all reported
+  for an interval, they form one consistent operating-point triple:
+  `|V × I × pf − avg_power_w| / avg_power_w ≤ 1e-9`. When intra-interval
+  conditions varied, the exporter omits V/I (absent, never zero) instead of
+  reporting an inconsistent triple. No unexplained tolerance masks arithmetic
+  in this deterministic simulation.
 
 ### 3.5 Aggregation (finer → coarser)
 
@@ -188,12 +192,23 @@ available resolution.
   Reconciliation: `cumulative(end_n) − cumulative(end_{n−1}) == energy_n`
   within tolerance; the first interval of a partial export is exempt.
 
-### 3.6 Tolerance and rounding
+### 3.6 Precision, tolerance and rounding
 
-- Consistency checks: absolute tolerance `1e-6` kWh for energy sums;
-  1% relative for power-derived checks.
-- Rounding policy: round only at presentation/export (≤ 6 dp for kWh,
-  ≤ 3 dp for W). Never round internal accumulators step by step.
+- Exported kWh values (`energy_kwh`, `cumulative_kwh`) carry up to 12 decimal
+  places (trailing zeros not required). W values carry up to 3 dp. UI
+  presentation rounding is separate and never feeds back into stored data.
+- Internal accumulation uses unrounded energy. Never accumulate already-rounded
+  display values.
+- Tolerances (absolute, kWh unless noted):
+  - per-interval energy vs average power: `1e-9`;
+  - adjacent cumulative-counter differences: `1e-9`;
+  - aggregated totals over `n` contributing intervals: `n × 1e-9`;
+  - V·I·pf triple: relative `1e-9` (§3.4).
+- Rounding budget (checked in `scripts/verify-contract.mjs`, parameters in
+  `fixtures/expected.json`): a 7 W load over 44,640 one-minute intervals
+  (31 days) has analytic total 5.208 kWh; summing 12 dp-rounded interval
+  values must stay within `44640 × 0.5e-12 = 2.232e-8` kWh of analytic.
+  No large dataset file is generated for this check; it runs in memory.
 
 ## 4. Canonical JSON export
 
@@ -219,17 +234,23 @@ room_intervals[], device_intervals[]
 
 ## 5. CSV representation
 
-Specified in `CSV_COLUMNS.md`. Summary of decisions:
+Specified in `CSV_COLUMNS.md`. A single CSV file is a complete standalone
+export for a fresh auditor database — no paired JSON, no preloaded inventory.
+Summary of decisions:
 
 - UTF-8, header row, RFC 4180 quoting, decimal dots, booleans `true`/`false`,
   null = empty unquoted field.
-- One row per device interval; room summaries + metadata repeated per row;
-  importer deduplicates room values by `(run_id, room_id, interval_start_utc)`.
-- Two JSON-valued metadata columns: `meta_run` (export identity/provenance),
-  `meta_policy` (effective policy refs), CSV-escaped; importer checks
-  `meta_run` consistency across rows.
-- Coverage rule: aligned interval grid with one row per exported device per
-  interval; absent rows are gaps (errors), never synthesised as zeros.
+- One row per device interval; room summaries repeat per row and are
+  deduplicated by `(run_id, room_id, interval_start_utc)` with conflict errors.
+- `meta_run` carries the complete metadata envelope (schema/source/synthetic,
+  building, run, export, all rooms/devices/policies) on the FIRST data row
+  only and is empty afterwards — exactly one envelope per file. There is no
+  `meta_policy` column; scalar `policy_ref` values resolve against the envelope.
+- Envelope errors (missing/multiple/misplaced/unparseable envelope, unknown
+  references, ID disagreement) abort the import. A CSV slice without its
+  envelope is not a valid export.
+- Coverage rule: aligned grid with one row per exported device per interval;
+  absent rows are gaps (errors), never synthesised as zeros.
 - No room/office total rows. JSON and CSV represent the same fixture and must
   produce the same results. No general application CSV importer in F1.
 
@@ -240,8 +261,11 @@ Specified in `CSV_COLUMNS.md`. Summary of decisions:
    `policy_ref`→policy, interval `run_id` consistency). 4. Interval
    ordering/overlap/contiguity per device. 5. Unit and range checks
    (schema bounds, `max ≥ avg`, fractions in [0,1], durations ≤ interval).
-   6. Energy/counter reconciliation (§3.5). 7. Conflicting metadata detection
-   (`meta_run` drift, mismatched inventory). 8. Duplicate handling (§1).
+   6. Energy/counter reconciliation (§3.5, tolerances §3.6). 7. Metadata envelope
+   validation: exactly one envelope on the first data row (JSON; unparseable,
+   missing, multiple, or misplaced envelopes are errors), unknown
+   device/room/policy references are errors, scalar IDs must agree with the
+   envelope. 8. Duplicate handling (§1).
    9. Coverage/gap report. Errors abort the import with **no partial database
    write**; warnings (identical duplicates deduped, standby anomalies) are
    reported alongside acceptance.

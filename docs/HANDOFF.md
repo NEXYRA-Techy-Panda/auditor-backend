@@ -43,6 +43,11 @@
   Python service on Mohan's VPS (no deployment in F1); from F1 onward
   completed layer work is committed and pushed (F0/F0.1 no-push was historical
   only).
+- F1-R1 addendum (2026-09-24, completed, review pending): pre-acceptance
+  corrections, version retained at 1.0.0 (not published). This repo holds the
+  corrected mirror: self-contained envelope CSV, 12 dp precision + consistent
+  tolerances, extended verifier (reconstruction parity + negatives + budget).
+  54/54 in all five repos. Repo-local identity configured. History preserved.
 
 ## 1. Purpose and owner
 
