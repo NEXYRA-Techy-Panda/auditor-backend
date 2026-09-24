@@ -1,0 +1,20 @@
+import cors from 'cors';
+import express, { type Express } from 'express';
+import type { Config } from './config.js';
+import { errorHandler, notFound } from './http/errors.js';
+import { requestId } from './http/requestId.js';
+import { healthRouter } from './routes/health.js';
+
+export function createApp(config: Config): Express {
+  const app = express();
+  app.disable('x-powered-by');
+  app.use(requestId);
+  app.use(cors({ origin: config.frontendOrigin }));
+  app.use(express.json({ limit: config.jsonBodyLimit }));
+
+  app.use('/api/v1', healthRouter());
+
+  app.use(notFound);
+  app.use(errorHandler);
+  return app;
+}

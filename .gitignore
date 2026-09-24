@@ -8,6 +8,7 @@ coverage/
 # Working environment files (names only — never commit values).
 .env
 .env.*
+!.env.example
 
 # Local databases (each backend owns its own file at runtime; never commit).
 *.sqlite
