@@ -179,6 +179,25 @@ const migrations: Migration[] = [{
       FOREIGN KEY (improved_dataset_id) REFERENCES datasets(dataset_id)
     );
   `,
+}, {
+  version: 2,
+  name: 'analysis_job_execution_and_results',
+  sql: `
+    ALTER TABLE analysis_jobs ADD COLUMN method TEXT;
+    ALTER TABLE analysis_jobs ADD COLUMN method_version TEXT;
+    ALTER TABLE analysis_jobs ADD COLUMN requested_start_utc TEXT;
+    ALTER TABLE analysis_jobs ADD COLUMN requested_end_utc TEXT;
+    ALTER TABLE analysis_jobs ADD COLUMN actual_start_utc TEXT;
+    ALTER TABLE analysis_jobs ADD COLUMN actual_end_utc TEXT;
+    ALTER TABLE analysis_jobs ADD COLUMN batch_completed INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE analysis_jobs ADD COLUMN batch_total INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE analysis_jobs ADD COLUMN progress_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(progress_json));
+    ALTER TABLE analysis_jobs ADD COLUMN result_json TEXT CHECK (result_json IS NULL OR json_valid(result_json));
+    ALTER TABLE analysis_jobs ADD COLUMN error_code TEXT;
+    ALTER TABLE analysis_jobs ADD COLUMN error_message TEXT;
+    CREATE INDEX analysis_jobs_status_idx ON analysis_jobs(status, created_at);
+    CREATE INDEX findings_job_idx ON findings(job_id, finding_id);
+  `,
 }];
 
 export function migrate(db: Database.Database): void {

@@ -25,11 +25,42 @@ export interface ForecastInput {
   energyKwh: number; assumptions: JsonRecord; tariff?: { userId: string; ratePerKwh: number; currency: string; costAmount: number };
 }
 export interface ComparisonInput { comparisonId: string; originalDatasetId: string; improvedDatasetId: string; assumptions: JsonRecord; }
+export interface AnalysisDatasetMeta {
+  dataset_id: string; run_id: string; synthetic: boolean; synthetic_label: string | null;
+  timezone: string; start_utc: string; end_utc: string; interval_seconds: number;
+}
+export interface AnalysisRoomMeta { room_id: string; name: string; capacity: number; room_type: string; floor_area_m2: number | null; }
+export interface AnalysisDeviceMeta {
+  device_id: string; name: string; room_id: string; device_type: string; always_on: boolean;
+  quantity: number; nominal_power_w: number; standby_power_w: number | null; power_factor: number;
+  control: string; controls: string[];
+}
+export interface AnalysisPolicyMeta {
+  policy_id: string; version: number; kind: string; rules: JsonRecord; applies_to: string; effective_from_utc: string;
+}
+export interface StoredAnalysisInterval extends JsonRecord {
+  run_id?: string; room_id: string; device_id?: string; policy_id?: string; policy_version?: number;
+  interval_start_utc: string; interval_end_utc: string; interval_seconds: number; partial: boolean | number;
+  avg_power_w?: number; energy_kwh?: number; vacant_on_seconds?: number; offschedule_on_seconds?: number;
+  override_seconds?: number | null; max_power_w?: number | null; cumulative_kwh?: number | null;
+  avg_voltage_v?: number | null; avg_current_a?: number | null; power_factor?: number | null; on_fraction?: number | null;
+  occupancy_avg?: number; occupancy_max?: number; occupied_fraction?: number; avg_temp_c?: number | null; avg_rh_pct?: number | null;
+}
+export interface AnalysisJobRecord {
+  job_id: string; dataset_id: string; status: 'queued' | 'running' | 'completed' | 'failed';
+  request: JsonRecord; method: string | null; method_version: string | null;
+  requested_start_utc: string | null; requested_end_utc: string | null;
+  actual_start_utc: string | null; actual_end_utc: string | null;
+  batch_completed: number; batch_total: number; progress: JsonRecord;
+  result: JsonRecord | null; error_code: string | null; error_message: string | null;
+  created_at: string; completed_at: string | null;
+}
 export interface DatasetListItem {
   dataset_id: string; run_id: string; scenario_id: string; interval_seconds: number; imported_utc: string;
 }
 export interface DatasetSummary {
   dataset_id: string; energy_kwh: number; cost_inr: number | null; tariff_inr_per_kwh: number | null;
+  synthetic: boolean; synthetic_label: string | null;
   coverage: { start_utc: string; end_utc: string; device_intervals: number; room_intervals: number };
   gaps: [];
 }
@@ -140,12 +171,22 @@ export class AuditorDatabase {
       FROM datasets ORDER BY imported_at DESC, dataset_id`).all() as DatasetListItem[];
   }
 
+  listDatasetsPage(page: number, pageSize: number): { items: DatasetListItem[]; total: number } {
+    const total = (this.connection.prepare('SELECT count(*) AS count FROM datasets').get() as { count: number }).count;
+    const items = this.connection.prepare(`SELECT dataset_id,
+      json_extract(source_metadata_json,'$.run.run_id') AS run_id,
+      json_extract(source_metadata_json,'$.run.scenario_id') AS scenario_id,
+      source_resolution_seconds AS interval_seconds, imported_at AS imported_utc
+      FROM datasets ORDER BY imported_at DESC, dataset_id LIMIT ? OFFSET ?`).all(pageSize, (page - 1) * pageSize) as DatasetListItem[];
+    return { items, total };
+  }
+
   getDatasetSummary(datasetId: string, userId = 'local'): DatasetSummary | undefined {
-    const dataset = this.connection.prepare(`SELECT dataset_id,
+    const dataset = this.connection.prepare(`SELECT dataset_id,synthetic,synthetic_label,
       json_extract(source_metadata_json,'$.export.export_start_utc') AS start_utc,
       json_extract(source_metadata_json,'$.export.export_end_utc') AS end_utc
       FROM datasets WHERE dataset_id=?`).get(datasetId) as
-      { dataset_id: string; start_utc: string; end_utc: string } | undefined;
+      { dataset_id: string; synthetic: number; synthetic_label: string | null; start_utc: string; end_utc: string } | undefined;
     if (!dataset) return undefined;
     const energy = (this.connection.prepare('SELECT coalesce(sum(energy_kwh),0) AS value FROM device_intervals WHERE dataset_id=?').get(datasetId) as { value: number }).value;
     const rate = this.connection.prepare('SELECT rate_per_kwh AS value FROM user_tariff_settings WHERE user_id=?').get(userId) as { value: number } | undefined;
@@ -154,14 +195,173 @@ export class AuditorDatabase {
     return {
       dataset_id: dataset.dataset_id, energy_kwh: energy,
       cost_inr: rate ? energy * rate.value : null, tariff_inr_per_kwh: rate?.value ?? null,
+      synthetic: dataset.synthetic === 1, synthetic_label: dataset.synthetic_label,
       coverage: { start_utc: dataset.start_utc, end_utc: dataset.end_utc, device_intervals: deviceIntervals, room_intervals: roomIntervals },
       gaps: [],
     };
   }
 
+  getAnalysisDatasetMeta(datasetId: string): AnalysisDatasetMeta | undefined {
+    const row = this.connection.prepare(`SELECT d.dataset_id, json_extract(d.source_metadata_json,'$.run.run_id') AS run_id,
+      d.synthetic, d.synthetic_label, d.timezone,
+      json_extract(d.source_metadata_json,'$.export.export_start_utc') AS start_utc,
+      json_extract(d.source_metadata_json,'$.export.export_end_utc') AS end_utc,
+      d.source_resolution_seconds AS interval_seconds
+      FROM datasets d WHERE d.dataset_id=?`).get(datasetId) as (Omit<AnalysisDatasetMeta, 'synthetic'> & { synthetic: number }) | undefined;
+    return row ? { ...row, synthetic: row.synthetic === 1 } : undefined;
+  }
+
+  getAnalysisRooms(datasetId: string, roomIds: string[]): AnalysisRoomMeta[] {
+    if (roomIds.length === 0) return [];
+    const marks = roomIds.map(() => '?').join(',');
+    return this.connection.prepare(`SELECT room_id,name,capacity,room_type,floor_area_m2 FROM rooms
+      WHERE dataset_id=? AND room_id IN (${marks}) ORDER BY room_id`).all(datasetId, ...roomIds) as AnalysisRoomMeta[];
+  }
+
+  getAnalysisDevices(datasetId: string, deviceIds: string[]): AnalysisDeviceMeta[] {
+    if (deviceIds.length === 0) return [];
+    const marks = deviceIds.map(() => '?').join(',');
+    const rows = this.connection.prepare(`SELECT device_id,name,room_id,device_type,always_on,quantity,nominal_power_w,
+      standby_power_w,power_factor,control,metadata_json FROM devices
+      WHERE dataset_id=? AND device_id IN (${marks}) ORDER BY room_id,device_id`).all(datasetId, ...deviceIds) as
+      (Omit<AnalysisDeviceMeta, 'always_on' | 'controls'> & { always_on: number; metadata_json: string })[];
+    return rows.map((row) => {
+      const metadata = JSON.parse(row.metadata_json) as JsonRecord;
+      return { ...row, always_on: row.always_on === 1, controls: Array.isArray(metadata.controls) ? metadata.controls as string[] : [] };
+    });
+  }
+
+  getAnalysisPolicies(datasetId: string, refs: Array<{ id: string; version: number }>): AnalysisPolicyMeta[] {
+    if (refs.length === 0) return [];
+    const conditions = refs.map(() => '(policy_id=? AND version=?)').join(' OR ');
+    const params = refs.flatMap((ref) => [ref.id, ref.version]);
+    const rows = this.connection.prepare(`SELECT policy_id,version,kind,rules_json,applies_to,effective_from_utc
+      FROM policy_versions WHERE dataset_id=? AND (${conditions}) ORDER BY policy_id,version`)
+      .all(datasetId, ...params) as (Omit<AnalysisPolicyMeta, 'rules'> & { rules_json: string })[];
+    return rows.map(({ rules_json, ...row }) => ({ ...row, rules: JSON.parse(rules_json) as JsonRecord }));
+  }
+
+  getAnalysisDeviceIds(datasetId: string, fromUtc: string, toUtc: string): Array<{ device_id: string; room_id: string }> {
+    return this.connection.prepare(`SELECT DISTINCT di.device_id,di.room_id FROM device_intervals di
+      WHERE di.dataset_id=? AND di.interval_start_utc>=? AND di.interval_end_utc<=? ORDER BY di.room_id,di.device_id`)
+      .all(datasetId, fromUtc, toUtc) as Array<{ device_id: string; room_id: string }>;
+  }
+
+  getAnalysisDeviceStarts(datasetId: string, deviceId: string, fromUtc: string, toUtc: string): string[] {
+    return (this.connection.prepare(`SELECT interval_start_utc FROM device_intervals WHERE dataset_id=? AND device_id=?
+      AND interval_start_utc>=? AND interval_start_utc<? ORDER BY interval_start_utc`)
+      .all(datasetId, deviceId, fromUtc, toUtc) as Array<{ interval_start_utc: string }>).map((row) => row.interval_start_utc);
+  }
+
+  getAnalysisDeviceIntervalAt(datasetId: string, deviceId: string, startUtc: string): StoredAnalysisInterval | undefined {
+    return this.connection.prepare(`SELECT run_id,room_id,device_id,interval_start_utc,interval_end_utc,interval_seconds,
+      avg_power_w,energy_kwh,vacant_on_seconds,offschedule_on_seconds,policy_id,policy_version,override_seconds,
+      max_power_w,cumulative_kwh,avg_voltage_v,avg_current_a,power_factor,on_fraction,partial
+      FROM device_intervals WHERE dataset_id=? AND device_id=? AND interval_start_utc=?`)
+      .get(datasetId, deviceId, startUtc) as StoredAnalysisInterval | undefined;
+  }
+
+  getAnalysisCoverage(datasetId: string, fromUtc: string, toUtc: string): { device_intervals: number; room_intervals: number; start_utc: string | null; end_utc: string | null } {
+    const row = this.connection.prepare(`SELECT count(*) AS device_intervals,min(interval_start_utc) AS start_utc,max(interval_end_utc) AS end_utc
+      FROM device_intervals WHERE dataset_id=? AND interval_start_utc>=? AND interval_end_utc<=?`)
+      .get(datasetId, fromUtc, toUtc) as { device_intervals: number; start_utc: string | null; end_utc: string | null };
+    const rooms = (this.connection.prepare(`SELECT count(*) AS count FROM room_intervals
+      WHERE dataset_id=? AND interval_start_utc>=? AND interval_end_utc<=?`).get(datasetId, fromUtc, toUtc) as { count: number }).count;
+    return { ...row, room_intervals: rooms };
+  }
+
+  getAnalysisEnergy(datasetId: string, fromUtc: string, toUtc: string): number {
+    return (this.connection.prepare(`SELECT coalesce(sum(energy_kwh),0) AS energy FROM device_intervals
+      WHERE dataset_id=? AND interval_start_utc>=? AND interval_end_utc<=?`).get(datasetId, fromUtc, toUtc) as { energy: number }).energy;
+  }
+
+  getAnalysisDeviceIntervals(datasetId: string, deviceId: string, fromUtc: string, toUtc: string): StoredAnalysisInterval[] {
+    return this.connection.prepare(`SELECT run_id,room_id,device_id,interval_start_utc,interval_end_utc,interval_seconds,
+      avg_power_w,energy_kwh,vacant_on_seconds,offschedule_on_seconds,policy_id,policy_version,override_seconds,
+      max_power_w,cumulative_kwh,avg_voltage_v,avg_current_a,power_factor,on_fraction,partial
+      FROM device_intervals WHERE dataset_id=? AND device_id=? AND interval_start_utc>=? AND interval_start_utc<?
+      ORDER BY interval_start_utc`).all(datasetId, deviceId, fromUtc, toUtc) as StoredAnalysisInterval[];
+  }
+
+  getAnalysisRoomIntervals(datasetId: string, roomId: string, fromUtc: string, toUtc: string): StoredAnalysisInterval[] {
+    return this.connection.prepare(`SELECT run_id,room_id,interval_start_utc,interval_end_utc,interval_seconds,
+      occupancy_avg,occupancy_max,occupied_fraction,avg_temp_c,avg_rh_pct,partial FROM room_intervals
+      WHERE dataset_id=? AND room_id=? AND interval_start_utc>=? AND interval_start_utc<?
+      ORDER BY interval_start_utc`).all(datasetId, roomId, fromUtc, toUtc) as StoredAnalysisInterval[];
+  }
+
   createAnalysisJob(input: AnalysisJobInput): void {
-    this.connection.prepare('INSERT INTO analysis_jobs(job_id,dataset_id,status,request_json) VALUES (?,?,?,?)')
-      .run(input.jobId, input.datasetId, input.status, JSON.stringify(input.request));
+    this.connection.prepare(`INSERT INTO analysis_jobs(job_id,dataset_id,status,request_json,requested_start_utc,requested_end_utc)
+      VALUES (?,?,?,?,?,?)`).run(input.jobId, input.datasetId, input.status, JSON.stringify(input.request),
+      input.request.start_utc ?? null, input.request.end_utc ?? null);
+  }
+
+  pendingAnalysisJobs(): number {
+    return (this.connection.prepare("SELECT count(*) AS count FROM analysis_jobs WHERE status IN ('queued','running')")
+      .get() as { count: number }).count;
+  }
+
+  markInterruptedAnalysisJobs(): number {
+    return this.connection.prepare(`UPDATE analysis_jobs SET status='failed',error_code='JOB_INTERRUPTED',
+      error_message='Analysis was interrupted by a service restart',completed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now')
+      WHERE status IN ('queued','running')`).run().changes;
+  }
+
+  startAnalysisJob(jobId: string, method: string, version: string, batchTotal: number): void {
+    this.connection.prepare(`UPDATE analysis_jobs SET status='running',method=?,method_version=?,batch_total=?,
+      batch_completed=0,progress_json=?,error_code=NULL,error_message=NULL
+      WHERE job_id=? AND status='queued'`).run(method, version, batchTotal, JSON.stringify({ completed_batches: 0, total_batches: batchTotal }), jobId);
+  }
+
+  updateAnalysisJobProgress(jobId: string, completed: number, total: number, coverage: { start_utc: string; end_utc: string } | null): void {
+    this.connection.prepare(`UPDATE analysis_jobs SET batch_completed=?,batch_total=?,
+      actual_start_utc=CASE WHEN actual_start_utc IS NULL OR actual_start_utc>? THEN ? ELSE actual_start_utc END,
+      actual_end_utc=CASE WHEN actual_end_utc IS NULL OR actual_end_utc<? THEN ? ELSE actual_end_utc END,
+      progress_json=? WHERE job_id=? AND status='running'`)
+      .run(completed, total, coverage?.start_utc ?? null, coverage?.start_utc ?? null,
+        coverage?.end_utc ?? null, coverage?.end_utc ?? null,
+        JSON.stringify({ completed_batches: completed, total_batches: total, ...(coverage ? { last_batch_coverage: coverage } : {}) }), jobId);
+  }
+
+  completeAnalysisJob(jobId: string, result: JsonRecord, findings: Array<{ findingId: string; datasetId: string; scopeId: string; findingType: string; severity: string; details: JsonRecord }>): void {
+    this.transaction(() => {
+      const add = this.connection.prepare(`INSERT INTO findings(finding_id,job_id,dataset_id,scope_type,scope_id,finding_type,severity,details_json)
+        VALUES (?,?,?,?,?,?,?,?)`);
+      for (const finding of findings) add.run(`${jobId}:${finding.findingId}`, jobId, finding.datasetId, 'device', finding.scopeId,
+        finding.findingType, finding.severity, JSON.stringify(finding.details));
+      this.connection.prepare(`UPDATE analysis_jobs SET status='completed',result_json=?,completed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now'),
+        actual_end_utc=json_extract(?,'$.coverage.end_utc') WHERE job_id=? AND status='running'`)
+        .run(JSON.stringify(result), JSON.stringify(result), jobId);
+    });
+  }
+
+  failAnalysisJob(jobId: string, code: string, message: string): void {
+    this.connection.prepare(`UPDATE analysis_jobs SET status='failed',error_code=?,error_message=?,
+      completed_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE job_id=? AND status IN ('queued','running')`)
+      .run(code, message, jobId);
+  }
+
+  getAnalysisJob(jobId: string): AnalysisJobRecord | undefined {
+    const row = this.connection.prepare(`SELECT job_id,dataset_id,status,request_json,method,method_version,
+      requested_start_utc,requested_end_utc,actual_start_utc,actual_end_utc,batch_completed,batch_total,progress_json,
+      result_json,error_code,error_message,created_at,completed_at FROM analysis_jobs WHERE job_id=?`).get(jobId) as
+      (Omit<AnalysisJobRecord, 'status' | 'request' | 'progress' | 'result'> & { status: AnalysisJobRecord['status']; request_json: string; progress_json: string; result_json: string | null }) | undefined;
+    if (!row) return undefined;
+    const { request_json, progress_json, result_json, ...fields } = row;
+    return { ...fields, request: JSON.parse(request_json) as JsonRecord, progress: JSON.parse(progress_json) as JsonRecord,
+      result: result_json ? JSON.parse(result_json) as JsonRecord : null };
+  }
+
+  getAnalysisFindings(jobId: string, limit: number, offset: number): { items: JsonRecord[]; total: number } {
+    const total = (this.connection.prepare('SELECT count(*) AS count FROM findings WHERE job_id=?').get(jobId) as { count: number }).count;
+    const rows = this.connection.prepare(`SELECT details_json FROM findings WHERE job_id=? ORDER BY finding_id LIMIT ? OFFSET ?`)
+      .all(jobId, limit, offset) as Array<{ details_json: string }>;
+    return { items: rows.map((row) => JSON.parse(row.details_json) as JsonRecord), total };
+  }
+
+  getCurrentTariff(userId = 'local'): number | null {
+    const row = this.connection.prepare('SELECT rate_per_kwh FROM user_tariff_settings WHERE user_id=?').get(userId) as { rate_per_kwh: number } | undefined;
+    return row?.rate_per_kwh ?? null;
   }
 
   addFinding(input: FindingInput): void {

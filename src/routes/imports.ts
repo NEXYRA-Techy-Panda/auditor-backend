@@ -106,7 +106,13 @@ export function importsRouter(database: AuditorDatabase, maxUploadBytes = MAX_FI
     finally { cleanup(req); }
   });
 
-  router.get('/imports', (_req, res) => sendData(res, database.listDatasets()));
+  router.get('/imports', (req, res) => {
+    const page = pageParam(req.query.page, 1, 1_000_000);
+    const pageSize = pageParam(req.query.page_size, 50, 200);
+    if (!page || !pageSize) { sendError(res, 422, { code: 'VALIDATION_ERROR', message: 'page must be positive and page_size must be between 1 and 200' }); return; }
+    const listed = database.listDatasetsPage(page, pageSize);
+    sendData(res, listed.items, 200, { pagination: { page, page_size: pageSize, total: listed.total, total_pages: Math.ceil(listed.total / pageSize) } });
+  });
 
   router.get('/imports/:id/summary', (req, res) => {
     const summary = database.getDatasetSummary(req.params.id!);
@@ -125,4 +131,11 @@ export function importsRouter(database: AuditorDatabase, maxUploadBytes = MAX_FI
     sendData(res, { dataset_id: req.params.id, inr_per_kwh: value });
   });
   return router;
+}
+
+function pageParam(raw: unknown, fallback: number, max: number): number | undefined {
+  if (raw === undefined) return fallback;
+  if (typeof raw !== 'string' || !/^\d+$/.test(raw)) return undefined;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value >= 1 && value <= max ? value : undefined;
 }

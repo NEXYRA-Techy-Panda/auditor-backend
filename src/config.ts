@@ -8,9 +8,10 @@ export interface Config {
   shutdownTimeoutMs: number;
   /**
    * Origin of the private energy-ml-service (routes such as /health are appended
-   * by callers). Configured only; not contacted until F4.
+   * by callers). Contacted only through bounded server-side probes/requests.
    */
   mlServiceUrl: string;
+  mlTimeoutMs: number;
   databasePath: string;
   databaseBusyTimeoutMs: number;
   uploadMaxBytes: number;
@@ -60,6 +61,7 @@ export function loadConfig(env: Env = process.env): Config {
     jsonBodyLimit: parseSizeLimit('JSON_BODY_LIMIT', env.JSON_BODY_LIMIT || '100kb'),
     shutdownTimeoutMs: intInRange(env, 'SHUTDOWN_TIMEOUT_MS', 10000, 0, 600000),
     mlServiceUrl: parseOrigin('ML_SERVICE_URL', env.ML_SERVICE_URL || 'http://localhost:8000'),
+    mlTimeoutMs: intInRange(env, 'ML_TIMEOUT_MS', 10000, 100, 60000),
     databasePath: env.DATABASE_PATH || './data/auditor.sqlite',
     databaseBusyTimeoutMs: intInRange(env, 'DATABASE_BUSY_TIMEOUT_MS', 5000, 0, 60000),
     uploadMaxBytes: intInRange(env, 'UPLOAD_MAX_BYTES', 512 * 1024 * 1024, 1, 1024 * 1024 * 1024),

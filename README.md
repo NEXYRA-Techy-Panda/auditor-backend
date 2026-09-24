@@ -9,12 +9,15 @@ project.
 - **Owner**: Mohan.
 - **Local port**: `4001`. Python service: `http://localhost:8000`.
 
-## Status (P006 F5-A, 2026-09-24)
+## Status (P015 F4/M2, 2026-09-24)
 
-CSV and canonical JSON imports now validate and persist through the auditor's
-private SQLite database. `GET /api/v1/health` still reports
-`ml_reachable: "not_checked"`. Analysis, forecast, comparison, reports, and
-Python calls are not part of this layer. Evidence: [P006 F5-A](docs/P006_F5_A_EVIDENCE.md).
+CSV and canonical JSON imports validate and persist through the auditor's
+private SQLite database. Persisted datasets can now be analyzed through
+bounded jobs calling Python's deterministic P010 rules. In production,
+`GET /api/v1/health` probes the configured Python `/health`; reachability does
+not imply a trained model. Forecast integration remains out of scope. Evidence:
+[P006 import](docs/P006_F5_A_EVIDENCE.md) and
+[P015 analysis](docs/P015_ANALYSIS_INTEGRATION_EVIDENCE.md).
 
 ## Setup and commands (Windows PowerShell or Linux shell; Node >= 24, npm)
 
@@ -29,6 +32,7 @@ npm test                   # node:test via tsx (real HTTP on an ephemeral port)
 npm run verify:contract    # dependency-free contract checks (read-only bundle)
 npm run validate:schema    # formal JSON Schema 2020-12 validation (Ajv)
 npm run check:import-scale # generated 31-day CSV over HTTP on port 4001
+npm run check:analysis-http # isolated P010 snapshot + auditor scratch DB
 ```
 
 The database path defaults to `./data/auditor.sqlite` and can be overridden
@@ -79,12 +83,36 @@ Included: schema version, scenario and comparison, run start, export coverage
 and resolution, building/timezone, synthetic provenance, inventory, policies,
 and every deduplicated reading. Tariffs are outside dataset content.
 
+## Analysis jobs
+
+- `POST /api/v1/analysis/jobs` accepts `{ "dataset_id": "..." }`; optional
+  `from_utc` / `to_utc` request an interval-aligned subrange. It returns 202
+  with a queued job ID. Poll `GET /api/v1/analysis/jobs/:id` for lifecycle,
+  progress, and paginated results (`page`, `page_size`).
+- The worker is single-concurrency with at most four queued jobs. Jobs and
+  findings persist in SQLite. On startup, queued/running jobs from a previous
+  process become `failed` with `JOB_INTERRUPTED`.
+- The server calls the private configured `ML_SERVICE_URL` using
+  `ML_TIMEOUT_MS` (default 10 seconds). P010 rule analysis runs while
+  `model_available` is false and returns `method: "rule"`, `model_used: false`.
+- Each Python call has one device, its room and referenced policies; owned
+  reporting intervals do not overlap. Earlier context is limited to 3,600
+  seconds plus one interval. P010 interval evidence is merged only for owned
+  intervals; missing room history breaks vacancy continuity. Requests that
+  cannot fit the required context within Python's 2,000-record limits fail
+  with `INSUFFICIENT_DATA` rather than being truncated.
+- A job is capped at 100,000 merged findings; exceeding the result bound
+  fails the job instead of presenting partial findings as a completed result.
+- Dataset consumption and estimated avoidable energy remain separate. The
+  latest tariff is applied only when results are read; tariff edits do not
+  rerun analysis. See [frontend API examples](docs/AUDITOR_API_EXAMPLES.md).
+
 ## Configuration
 
 Copy `.env.example` to `.env` for local overrides (`.env` is git-ignored;
 real environment variables take precedence). Variables: `PORT` (4001),
 `HOST` (127.0.0.1), `FRONTEND_ORIGIN` (http://localhost:3001; the only CORS origin — CORS
-is not authentication), `ML_SERVICE_URL` (http://localhost:8000; origin only — configured, not contacted until F4), `JSON_BODY_LIMIT` (100kb; larger JSON
+is not authentication), `ML_SERVICE_URL` (http://localhost:8000; origin only), `ML_TIMEOUT_MS` (10000), `JSON_BODY_LIMIT` (100kb; larger JSON
 bodies get 413 `REQUEST_TOO_LARGE`), `SHUTDOWN_TIMEOUT_MS` (10000).
 Local development scaffold only — not approval to expose endpoints publicly.
 
@@ -100,3 +128,5 @@ Docs:
 - [F2-B evidence](docs/F2_B_EVIDENCE.md)
 - [Data contract v1](contracts/v1/CONTRACT.md)
 - [Service interfaces](contracts/v1/API.md)
+- [Auditor API examples](docs/AUDITOR_API_EXAMPLES.md)
+- [P015 analysis integration evidence](docs/P015_ANALYSIS_INTEGRATION_EVIDENCE.md)

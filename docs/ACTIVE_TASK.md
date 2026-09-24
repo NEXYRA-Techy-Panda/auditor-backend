@@ -2,54 +2,32 @@
 
 ## Layer
 
-P006, Agent C — Codex, F5-A — Auditor file import and reference-data
-integration. Owner: Mohan. Exclusive write scope: this repository.
-
-## Objective
-
-Implement the CSV/JSON multipart import flow, dataset listing/summary/tariff
-routes, strict structural and semantic validation, deterministic semantic
-fingerprints, and persistence using the existing `AuditorDatabase`.
-Contract 1.0.1 under `contracts/v1/` is read-only.
+P015, Agent C — Codex, F4/M2 auditor-to-Python analysis integration. Owner:
+Mohan. Exclusive write scope: `auditor-backend`. Python source is read-only at
+P010 commit `36f5832f298379c3a889a32673c409152aa8eaf0`.
 
 ## Status
 
-- Task: completed.
-- Review: pending.
-- Expected accepted baseline: `aa53d0c190ec9295354d34cb432a810144c79345`.
-- Startup: fetched `origin`; branch `main` was clean at expected baseline.
-- No applicable AGENTS.md found; no sibling or parent files will be edited.
+- Task: completed and published. Review: pending.
+- Starting auditor HEAD `67998d56ec03bf25525f0dc1bf2394c7ae2558bf` was clean on
+  `main`, equal to remote. No applicable `AGENTS.md` found.
+- P006 outcome is preserved in `PROGRESS_LOG.md` and `HANDOFF.md`.
 
 ## Checkpoint — 2026-09-24
 
-- Read P003 evidence, continuity docs, contract, CSV representation, API and
-  database/app code.
-- Design decision: uploads go to generated private OS temp directories with a
-  512 MiB bound; CSV uses a streaming RFC 4180 parser, with a 900,000 CSV-row
-  bound (above the 803,520-row 31-day, one-minute, 18-device target), and a
-  maximum 8 MiB metadata envelope. Parsing emits normalized records directly;
-  only bounded canonical arrays are retained for the existing store API.
-- Implemented: multipart upload with cleanup, streamed CSV reconstruction and
-  JSON structural+semantic validation; duplicate normalization and streamed
-  SHA-256 fingerprint; import/list/summary/tariff routes; HTTP errors with
-  field/row validation reports; generated temporary scale and live-server
-  check scripts.
-- Focused tests pass: 10/10, including JSON/BOM and CSV/CRLF uploads, cross
-  format duplicate IDs, reordered fingerprint equivalence, conflict response,
-  metadata/reference/timestamp/energy/fault-label negatives, limit 413,
-  rollback/no writes, summary and tariff.
-- Live server checks succeeded on port 4001 with temporary DB. The 31-day CSV
-  comprised 133,304,273 bytes, 803,520 device rows and 223,200 room intervals;
-  final-code import plus summary completed in 66 seconds. A mid-run Windows
-  process sample observed 838,115,328 working-set bytes (not a peak measurement).
-  Both owned server processes and temporary resources were stopped/removed.
-- Final checks against the final code: contract 75/75; schema 24/24;
-  typecheck/lint/build pass; tests 10/10; live HTTP and scale scripts pass.
-- Published implementation `3154e78493a0b310d58dd1101b5ccc337e64b0fb` to
-  `origin/main` without force; remote hash matched local HEAD. Port 4001 has no
-  listener and the working tree was clean at verification.
-
-## Exact next action
-
-P006 implementation and publication are complete. Review remains pending; stop
-after P006.
+- Implemented Python client with bounded response bodies/timeouts, real health
+  probe, validated envelopes, and safe errors; configured `ML_TIMEOUT_MS`.
+- Added migration v2 for analysis execution metadata/results. Added persisted
+  jobs/findings, single-worker/four-waiting queue, progress, startup recovery,
+  failure states, current-tariff result costs, and paginated status results.
+- Added context-window batching per device with no overlapping owned interval,
+  one room, exact referenced policies, 3,600-second-plus-one-interval context,
+  evidence-based merging, and explicit bound failure.
+- Focused checks: 14 tests pass. Real `check:analysis-http` against an isolated
+  export of P010 commit `36f5832f298379c3a889a32673c409152aa8eaf0` passed:
+  reference finding 0.01 kWh; total 0.03 kWh; tariff costs ₹0.10/₹0.30;
+  batch sizes 1000/317 equivalent; missing room history breaks continuity;
+  requests never exceeded 1000 records per array.
+- Final verification passed: contract (75), schema (24), typecheck, lint,
+  tests (14), build, import HTTP regression, and real analysis HTTP integration.
+- Exact next action: review pending; stop after P015.

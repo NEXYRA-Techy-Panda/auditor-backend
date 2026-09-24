@@ -1,5 +1,51 @@
 # HANDOFF — auditor-backend
 
+## P015 F4/M2 addendum (2026-09-24; implemented and published, review pending)
+
+- Adds `POST /api/v1/analysis/jobs` and `GET /api/v1/analysis/jobs/:id`.
+  First response is 202 queued; status progresses queued → running → completed
+  or failed. A forward SQLite migration adds persisted method/version, range,
+  coverage, batch progress, result and safe failure fields. Findings persist
+  and are paginated in the job status response.
+- Auditor calls configured `ML_SERVICE_URL` server-side with bounded response
+  size and `ML_TIMEOUT_MS`. `GET /api/v1/health` probes `/health`; reachability
+  is not model availability. P010 `model_available:false` still supports
+  `method: rule`, `model_used:false`.
+- Batch ownership is non-overlapping by device interval. Each request contains
+  one device, its room, referenced policies, no more than 2,000 records of
+  either type, and up to 3,600 seconds plus one interval of prior context.
+  Only P010 interval evidence inside the owned range contributes to merged
+  findings/energy. If the required context cannot fit the limits, the job fails
+  `INSUFFICIENT_DATA` without truncation. Missing room intervals break vacancy
+  continuity; incomplete coverage is returned as `complete:false`.
+- Analysis keeps imported consumption separate from avoidable energy. Current
+  tariff-derived costs are applied when results are read; tariff edits do not
+  rerun Python. Unfinished queued/running jobs are failed with
+  `JOB_INTERRUPTED` at next startup. One worker runs at a time with four
+  waiting jobs maximum.
+- Jobs cap merged findings and warnings at 100,000 each, and evidence rows at
+  100,000 per finding; exceeding a cap fails instead of returning partial
+  results as complete. Request batches are bounded; total persisted result
+  size still depends on the job's result counts.
+- Real HTTP evidence uses only an extracted copy of committed Python P010
+  `36f5832f298379c3a889a32673c409152aa8eaf0`; Python's working tree and
+  environment were left unchanged. Reference result: one light finding,
+  0.01 kWh avoidable, refrigerator excluded, 0.03 kWh imported consumption,
+  ₹0.10 avoidable and ₹0.30 consumption cost at ₹10/kWh. Partition comparison
+  (1000 vs 317 owned rows) matched; missing-room case broke continuity.
+- Public examples for P006 import/summary/tariff and P015 jobs:
+  [AUDITOR_API_EXAMPLES.md](AUDITOR_API_EXAMPLES.md). Full real/mocked results
+  and limitations: [P015 evidence](P015_ANALYSIS_INTEGRATION_EVIDENCE.md).
+- Remaining integration: auditor frontend/browser wiring is pending;
+  forecasting remains explicitly deferred. P010 provides only its deterministic
+  vacancy rule and warnings; no drift, spike, forecast or trained model result
+  is claimed.
+- Additive clarification: the contract's generic analysis-job text says
+  `succeeded`; this backend persists/returns `completed`, matching its existing
+  SQLite status vocabulary and P015 lifecycle wording.
+- Implementation and continuity updates are published on `main`; review is
+  pending. Exact next action: review pending; stop after P015.
+
 ## P006 F5-A addendum (2026-09-24; implemented, review pending)
 
 - Uses existing P003 `AuditorDatabase.storeDataset()` and the version 1.0.1

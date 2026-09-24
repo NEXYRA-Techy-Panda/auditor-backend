@@ -21,8 +21,8 @@ export interface ErrorBody {
 }
 
 /** Contract success envelope: { data, meta: { request_id } }. */
-export function sendData(res: Response, data: unknown, status = 200): void {
-  res.status(status).json({ data, meta: { request_id: res.locals.requestId as string } });
+export function sendData(res: Response, data: unknown, status = 200, extraMeta: Record<string, unknown> = {}): void {
+  res.status(status).json({ data, meta: { request_id: res.locals.requestId as string, ...extraMeta } });
 }
 
 /** Contract error envelope: { error: { code, message, field?, row? } }. */

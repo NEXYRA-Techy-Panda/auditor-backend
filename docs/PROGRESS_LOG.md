@@ -284,3 +284,36 @@ correction entry; do not rewrite history.
   removed.
 - Final continuity hash/status updates were then committed and pushed; final
   remote/local hash verification followed. Review pending; stop after P006.
+
+## 2026-09-24 — P015 F4/M2 started (Agent C — Codex)
+
+- Preserved completed P006 checkpoint above. Starting auditor HEAD was
+  `67998d56ec03bf25525f0dc1bf2394c7ae2558bf`, clean `main`; no applicable
+  `AGENTS.md` found.
+- Read required continuity, P006 evidence, API contract and auditor code.
+  Read-only committed Python source is P010
+  `36f5832f298379c3a889a32673c409152aa8eaf0`; sibling working tree is clean.
+- P010 limits each call to 2,000 device and 2,000 room intervals, runs rule
+  analysis while model availability is false, and returns interval-level
+  evidence. Next action: implement bounded analysis jobs/client/migrations and
+  run isolated committed-service integration.
+
+## 2026-09-24 — P015 F4/M2 completed and published (Agent C — Codex)
+
+- Added validated Python client, real Python health probe, persisted queued /
+  running / completed / failed analysis jobs, SQLite migration v2, result
+  pagination, current-tariff cost calculations, restart recovery, and a
+  single-worker queue with four waiting jobs maximum.
+- Added non-overlapping per-device batching with 1,000 owned intervals plus
+  required context, bounded request/response bodies, P010-evidence-based
+  merging, explicit missing-history handling, and hard caps for findings,
+  warnings, and evidence rows. No tariff or unsupported analysis was sent to
+  Python.
+- Published API examples and real/mocked evidence. Verification passed:
+  contract 75/75, schema 24/24, typecheck, lint, 14/14 tests, build, import
+  HTTP regression, and isolated real HTTP integration against P010 commit
+  `36f5832f298379c3a889a32673c409152aa8eaf0`.
+- Auditor implementation and final continuity records were pushed normally
+  to `origin/main`; review pending. Exact commit hashes are recorded in the
+  final evidence note.
+- Exact next action: review pending; stop after P015.

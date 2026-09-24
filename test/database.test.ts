@@ -19,10 +19,10 @@ test('SQLite persistence: migrations, atomic dataset storage, dataset scope, ide
   const path = join(dir, 'test.sqlite');
   let db = new AuditorDatabase(path);
   try {
-    assert.equal(count(db, 'migration_history'), 1);
+    assert.equal(count(db, 'migration_history'), 2);
     db.close();
     db = new AuditorDatabase(path);
-    assert.equal(count(db, 'migration_history'), 1);
+    assert.equal(count(db, 'migration_history'), 2);
     assert.equal(count(db, 'datasets'), 0);
     assert.equal(count(db, 'rooms'), 0);
 
